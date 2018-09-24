@@ -1,6 +1,7 @@
 ﻿
 import numpy as np
 
+
 class testfunctions():
     def linear(self, X):
         try:
@@ -14,6 +15,22 @@ class testfunctions():
         for i in range(X.shape[0]):
             y = np.append(y, np.sum(X[i]))
         return y
+        
+    def jeong(self, X):
+        try:
+            X.shape[1]
+        except:
+            X = np.array([X])
+
+        if X.shape[1] != 2:
+            raise Exception
+        x = X[:,0]
+        y = X[:,1]
+        
+        Y = 0.9063 * x + 0.3226 * y
+        Z = 0.3226 * x - 0.9063 * y
+        
+        return 1 - (Y - 6)**2 - (Y - 6)**3 + (Y - 6)**4 - Z
 
     def squared(self, X, offset =.25):
         try:
@@ -225,4 +242,3 @@ if __name__=='__main__':
     print(a.curretal88exp([[1,1,1],[2,2,2]]))
     print(a.cosine([[1,1,1],[2,2,2]]))
     print(a.runge([[1,1,1],[2,2,2]]))
-
