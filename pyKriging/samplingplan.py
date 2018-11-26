@@ -33,7 +33,7 @@ class samplingplan():
         #exclude 0
 
         for i in range(0,self.k):
-            X[:, i] = np.transpose(np.random.permutation(np.arange(1,n+1,1)))
+            X[:,i] = np.transpose(np.random.permutation(np.arange(1,n+1,1)))
 
         if Edges == 1:
             X = (X-1)/(n-1)

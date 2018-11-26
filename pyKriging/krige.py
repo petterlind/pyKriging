@@ -18,7 +18,7 @@ import pdb
 
 
 class kriging(matrixops):
-    def __init__(self, X, y, trend_fun=None, testfunction=None, name='', testPoints=None, **kwargs):
+    def __init__(self, X, y, testfunction=None, name='', testPoints=None, **kwargs):
         self.X = copy.deepcopy(X)
         self.y = copy.deepcopy(y)
         self.testfunction = testfunction
@@ -32,7 +32,6 @@ class kriging(matrixops):
         self.ynormRange = []
         self.normalizeData()
         self.sp = samplingplan.samplingplan(self.k)
-        self.trend_fun = trend_fun
         #self.updateData()
         #self.updateModel()
 
@@ -356,9 +355,8 @@ class kriging(matrixops):
         The function trains the hyperparameters of the Kriging model.
         :param optimizer: Two optimizers are implemented, a Particle Swarm Optimizer or a GA
         '''
-        
         # First make sure our data is up-to-date
-        self.updateData()  # Sets all the distances!
+        self.updateData() # Sets all the distances!
         
         # Establish the bounds for optimization for theta and p values
         lowerBound = [self.thetamin] * self.k + [self.pmin] * self.k
@@ -411,6 +409,7 @@ class kriging(matrixops):
 
             # Let's quickly double check that we're at the optimal value by running a quick local optimizaiton
             lopResults = minimize(self.fittingObjective_local, newValues, method='SLSQP', bounds=locOP_bounds, options={'disp': False})
+            pdb.set_trace()
             newValues = lopResults['x']
 
             # Finally, set our new theta and pl values and update the model again
@@ -434,7 +433,7 @@ class kriging(matrixops):
         '''
         fitness = []
         for entry in candidates:
-            f = 10000
+            f=10000
             for i in range(self.k):
                 self.theta[i] = entry[i]
             for i in range(self.k):
