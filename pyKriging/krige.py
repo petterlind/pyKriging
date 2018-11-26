@@ -1,5 +1,3 @@
-
-
 __author__ = 'chrispaulson'
 import numpy as np
 import scipy
@@ -16,11 +14,11 @@ from random import Random
 from time import time
 from inspyred import ec
 import math as m
-
+import pdb
 
 
 class kriging(matrixops):
-    def __init__(self, X, y, testfunction=None, name='', testPoints=None, **kwargs):
+    def __init__(self, X, y, trend_fun=None, testfunction=None, name='', testPoints=None, **kwargs):
         self.X = copy.deepcopy(X)
         self.y = copy.deepcopy(y)
         self.testfunction = testfunction
@@ -34,6 +32,7 @@ class kriging(matrixops):
         self.ynormRange = []
         self.normalizeData()
         self.sp = samplingplan.samplingplan(self.k)
+        self.trend_fun = trend_fun
         #self.updateData()
         #self.updateModel()
 
@@ -357,9 +356,10 @@ class kriging(matrixops):
         The function trains the hyperparameters of the Kriging model.
         :param optimizer: Two optimizers are implemented, a Particle Swarm Optimizer or a GA
         '''
+        
         # First make sure our data is up-to-date
-        self.updateData()
-
+        self.updateData()  # Sets all the distances!
+        
         # Establish the bounds for optimization for theta and p values
         lowerBound = [self.thetamin] * self.k + [self.pmin] * self.k
         upperBound = [self.thetamax] * self.k + [self.pmax] * self.k
@@ -398,7 +398,7 @@ class kriging(matrixops):
                                   num_elites=10,
                                   mutation_rate=.05)
 
-        # This code updates the model with the hyperparameters found in the global search
+        # This code updates the model with the hyperparameters found in the global search, but first it controlls the minima, if it fails it takes the next value in the loop.
         for entry in final_pop:
             newValues = entry.candidate
             preLOP = copy.deepcopy(newValues)
@@ -411,7 +411,6 @@ class kriging(matrixops):
 
             # Let's quickly double check that we're at the optimal value by running a quick local optimizaiton
             lopResults = minimize(self.fittingObjective_local, newValues, method='SLSQP', bounds=locOP_bounds, options={'disp': False})
-
             newValues = lopResults['x']
 
             # Finally, set our new theta and pl values and update the model again
@@ -435,7 +434,7 @@ class kriging(matrixops):
         '''
         fitness = []
         for entry in candidates:
-            f=10000
+            f = 10000
             for i in range(self.k):
                 self.theta[i] = entry[i]
             for i in range(self.k):
@@ -451,7 +450,7 @@ class kriging(matrixops):
             fitness.append(f)
         return fitness
 
-    def fittingObjective_local(self,entry):
+    def fittingObjective_local(self, entry):
         '''
         :param entry: The same objective function as the global optimizer, but formatted for the local optimizer
         :return: The fitness of the surface at the hyperparameters specified in entry
@@ -468,7 +467,8 @@ class kriging(matrixops):
         except Exception as e:
             # print 'Failure in NegLNLike, failing the run'
             # print Exception, e
-            f = 10000
+            f = 10000 
+            #  if fail function
         return f
 
     def plot(self, labels=False, show=True):

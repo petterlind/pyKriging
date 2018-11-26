@@ -1,5 +1,4 @@
-﻿
-import numpy as np
+﻿import numpy as np
 
 
 class testfunctions():
@@ -24,13 +23,13 @@ class testfunctions():
 
         if X.shape[1] != 2:
             raise Exception
-        x = X[:,0]
-        y = X[:,1]
+        x = X[:, 0]
+        y = X[:, 1]
         
-        Y = 0.9063 * x + 0.3226 * y
-        Z = 0.3226 * x - 0.9063 * y
+        Y = 0.9063 * x + 0.4226 * y
+        Z = 0.4226 * x - 0.9063 * y
         
-        return 1 - (Y - 6)**2 - (Y - 6)**3 + (Y - 6)**4 - Z
+        return 1 - (Y - 6)**2 - (Y - 6)**3 + 0.6 * (Y - 6)**4 - Z
 
     def squared(self, X, offset =.25):
         try:

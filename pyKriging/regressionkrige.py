@@ -15,7 +15,7 @@ from random import Random
 from time import time
 from inspyred import ec
 import math as m
-
+import pdb
 
 class regression_kriging(matrixops):
     def __init__(self, X, y, testfunction=None, name='', testPoints=None, **kwargs):
@@ -364,7 +364,6 @@ class regression_kriging(matrixops):
         #Create a random seed for our optimizer to use
         rand = Random()
         rand.seed(int(time()))
-
         # If the optimizer option is PSO, run the PSO algorithm
         if optimizer is 'pso':
             ea = inspyred.swarm.PSO(Random())
@@ -511,12 +510,13 @@ class regression_kriging(matrixops):
             plot.compute_normals = False
             errplt = mlab.contour3d(errscalars, contours=15, transparent=True, figure=errorFig)
             errplt.compute_normals = False
+            
             if show:
                 mlab.show()
 
-        if self.k==2:
+        if self.k == 2:
 
-            fig = pylab.figure(figsize=(8,6))
+            fig = pylab.figure(figsize=(8, 6))
             samplePoints = list(zip(*self.X))
             # Create a set of data to plot
             plotgrid = 61
@@ -529,30 +529,35 @@ class regression_kriging(matrixops):
 
             # Predict based on the optimized results
 
-            zs = np.array([self.predict([x,y]) for x,y in zip(np.ravel(X), np.ravel(Y))])
+            zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
             Z = zs.reshape(X.shape)
             # Z = (Z*(self.ynormRange[1]-self.ynormRange[0]))+self.ynormRange[0]
 
             #Calculate errors
-            zse = np.array([self.predict_var([x,y]) for x,y in zip(np.ravel(X), np.ravel(Y))])
+            zse = np.array([self.predict_var([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
             Ze = zse.reshape(X.shape)
 
-            spx = (self.X[:,0] * (self.normRange[0][1] - self.normRange[0][0])) + self.normRange[0][0]
-            spy = (self.X[:,1] * (self.normRange[1][1] - self.normRange[1][0])) + self.normRange[1][0]
+            spx = (self.X[:, 0] * (self.normRange[0][1] - self.normRange[0][0])) + self.normRange[0][0]
+            spy = (self.X[:, 1] * (self.normRange[1][1] - self.normRange[1][0])) + self.normRange[1][0]
             contour_levels = 25
 
             ax = fig.add_subplot(222)
-            CS = pylab.contourf(X,Y,Ze, contour_levels)
+            CS = pylab.contourf(X, Y, Ze, contour_levels)
             pylab.colorbar()
             pylab.plot(spx, spy,'ow')
+            pylab.xlabel('test1')
+            pylab.ylabel('test2')
+            pylab.title('Predicted variance')
 
             ax = fig.add_subplot(221)
             if self.testfunction:
                 # Setup the truth function
                 zt = self.testfunction( np.array(list(zip(np.ravel(X), np.ravel(Y)))) )
                 ZT = zt.reshape(X.shape)
-                CS = pylab.contour(X,Y,ZT,contour_levels ,colors='k',zorder=2)
-
+                CS = pylab.contour(X, Y, ZT, contour_levels, colors='k', zorder=2)
+                pylab.xlabel('test5')
+                pylab.ylabel('test6')
+                pylab.title('True function')
 
             # contour_levels = np.linspace(min(zt), max(zt),50)
             if self.testfunction:
@@ -562,15 +567,24 @@ class regression_kriging(matrixops):
                 contour_levels = np.append(contour_levels, contour_levels[-1]+delta)
 
             CS = plt.contourf(X,Y,Z,contour_levels,zorder=1)
-            pylab.plot(spx, spy,'ow', zorder=3)
+            pylab.plot(spx, spy, 'ow', zorder=3)
             pylab.colorbar()
-
+            
             ax = fig.add_subplot(212, projection='3d')
             # fig = plt.gcf()
             #ax = fig.gca(projection='3d')
-            ax.plot_surface(X, Y, Z, rstride=3, cstride=3, alpha=0.4)
+            Approx = ax.plot_surface(X, Y, Z, rstride=3, cstride=3, alpha=0.3, cmap='jet')
+            
             if self.testfunction:
-                ax.plot_wireframe(X, Y, ZT, rstride=3, cstride=3)
+                Real = ax.plot_wireframe(X, Y, ZT, rstride=3, cstride=3)
+                pylab.xlabel('test9')
+                pylab.ylabel('test10')
+                # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
+                # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
+                
+                # Now add the legend with some customizations.
+                # legend = ax.legend(loc='upper center', shadow=True)
+                # legend = ax.legend(loc='upper center', shadow=True)
             if show:
                 pylab.show()
 
