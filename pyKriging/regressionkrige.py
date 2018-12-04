@@ -1,5 +1,3 @@
-
-
 __author__ = 'chrispaulson'
 import numpy as np
 import scipy
@@ -15,10 +13,11 @@ from random import Random
 from time import time
 from inspyred import ec
 import math as m
+from matplotlib import cm
 import pdb
 
 class regression_kriging(matrixops):
-    def __init__(self, X, y, testfunction=None, name='', testPoints=None, **kwargs):
+    def __init__(self, X, y, testfunction=None, reg=None, name='', testPoints=None, **kwargs):
         self.X = copy.deepcopy(X)
         self.y = copy.deepcopy(y)
         self.testfunction = testfunction
@@ -33,12 +32,14 @@ class regression_kriging(matrixops):
         self.ynormRange = []
         self.normalizeData()
         self.sp = samplingplan(self.k)
+        self.reg = reg
         self.updateData()
         self.updateModel()
         self.thetamin = 1e-4
-        self.thetamax =100
+        self.thetamax = 100
         self.pmin = 1.81231
         self.pmax = 2
+                    # regression order
 
         # Setup functions for tracking history
         self.history = {}
@@ -229,7 +230,7 @@ class regression_kriging(matrixops):
             EI = EI_one + EI_two
         return EI
 
-    def infill_objective_mse(self,candidates, args):
+    def infill_objective_mse(self, candidates, args):
         '''
         This acts
         :param candidates: An array of candidate design vectors from the infill global optimizer
@@ -375,7 +376,7 @@ class regression_kriging(matrixops):
                                   pop_size=150,
                                   maximize=False,
                                   bounder=ec.Bounder(lowerBound, upperBound),
-                                  max_evaluations=30000,
+                                  max_evaluations=1000,
                                   neighborhood_size=20,
                                   num_inputs=self.k)
             # Sort and print the best individual, who will be at index 0.
@@ -470,6 +471,31 @@ class regression_kriging(matrixops):
             # print Exception, e
             f = 10000
         return f
+        
+    def plot_trend(self):
+        x = y = np.arange(0, 1, 0.05)
+        X, Y = np.meshgrid(x, y)
+        zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        Z = zs.reshape(X.shape)
+        
+        # real function
+        z_real = np.array([self.testfunction([x, y]) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        Z_r = z_real.reshape(X.shape)
+        
+        
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+
+        # Plot the surface.
+        ax.plot_surface(X, Y, Z, cmap=cm.coolwarm)
+        ax.plot_wireframe(X, Y, Z_r)
+        
+        ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y))
+        
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.show()
 
     def plot(self, labels=False, show=True):
         '''
@@ -642,7 +668,6 @@ class regression_kriging(matrixops):
             X, Y = np.meshgrid(x, y)
 
             # Predict based on the optimized results
-
             zs = np.array([self.predict_normalized([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
             Z = zs.reshape(X.shape)
             Z = (Z * (self.ynormRange[1] - self.ynormRange[0])) + self.ynormRange[0]

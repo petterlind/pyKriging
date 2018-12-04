@@ -1,1 +1,3 @@
-{}
+{
+  "pyKriging/test_matrixops.py::Test_RSM::test_plot_spline_basis_fun": true
+}

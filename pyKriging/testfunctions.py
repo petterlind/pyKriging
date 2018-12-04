@@ -67,8 +67,8 @@ class testfunctions():
 
         if X.shape[1] != 2:
             raise Exception
-        x = X[:,0]
-        y = X[:,1]
+        x = X[:, 0]
+        y = X[:, 1]
         X1 = 15*x-5
         X2 = 15*y
         a = 1

@@ -6,65 +6,99 @@ from geomdl import exchange
 from geomdl.visualization import VisMPL as vis
 import pyKriging
 from pyKriging import matrixops
-from pyKriging import samplingplan 
+from pyKriging import samplingplan
 from geomdl import utilities
 from pyKriging.regressionkrige import regression_kriging
 from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 
 class Test_RSM(unittest.TestCase):
-        
-    def test_RMSD_fun(self):
-        
-        num_p = 100
+    
+    # def test_reg_krig_first(self):
+    # 
+    #     num_p = 100
+    #     # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
+    #     sp = samplingplan(2)
+    #     X = sp.rlh(num_p)
+    #     # X = sp.grid(num_p)
+    # 
+    #     # Next, we define the problem we would like to solve
+    #     testfun = pyKriging.testfunctions().branin
+    #     y = testfun(X)
+    # 
+    #     krig_first = regression_kriging(X, y, testfunction=testfun, reg='First')
+    #     krig_first.train()
+    # 
+    #     # And plot the results
+    #     krig_first.plot()
+    #     # Or the trend function
+    #     krig_first.plot_trend()
+    # 
+    def test_reg_krig_second(self):
+        num_p = 5**2
         # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
-        sp = samplingplan(2)  
-        X = sp.rlh(num_p)
+        sp = samplingplan()
+        # X = sp.grid(num_p)
+        # X = sp.rlh(num_p)
+        X = sp.MC(num_p)
         
+        # Next, we define the problem we would like to solve
         testfun = pyKriging.testfunctions().branin
         y = testfun(X)
-        
-        
-        # Create a BSpline surface instance
-        surf = BSpline.Surface()
-
-        # Set degrees
-        surf.degree_u = 2
-        surf.degree_v = 2
-        ctrlpts_u = 3
-        ctrlpts_v = 3
-
-        # Set control points
-        surf.set_ctrlpts(*exchange.import_txt("ex_surface01.cpt", two_dimensional=True))
-        
-        i_vec = np.linspace(0, 1, num=ctrlpts_u)
-        j_vec = np.linspace(0, 1, num=ctrlpts_v)
-        initial_CP = []  # np.zeros((6, 6, 3))
-        for i in range(0, len(i_vec)):
-            for j in range(0, len(j_vec)):
-                initial_CP.append([i_vec[i], j_vec[j], 20])
-        surf.set_ctrlpts(initial_CP, ctrlpts_u, ctrlpts_v)
-        
-        surf.knotvector_u = utilities.generate_knot_vector(surf.degree_u, ctrlpts_u)
-        surf.knotvector_v = utilities.generate_knot_vector(surf.degree_v, ctrlpts_v)
-        
-        # Set evaluation delta
-        surf.delta = 0.025
-
-        # Evaluate surface points
-        surf.evaluate()
-
-        # Plot the control point grid and the evaluated surface
-        vis_comp = vis.VisSurfTriangle()
-        surf.vis = vis_comp
-        
-        k = regression_kriging(X, y, testfunction=testfun, name='simple')
-        
-        new_s = k.controlPointsOpt(surf, X, y, np.diag(np.ones((len(X),))))
-        
-        new_s.evaluate()
-        vis_comp = vis.VisSurfTriangle()
-        # new_s.vis = vis_comp
-        # new_s.render(colormap=cm.coolwarm)
     
+        krig_second = regression_kriging(X, y, testfunction=testfun, reg='Second')
+        krig_second.train()
+    
+        # And plot the results
+        krig_second.plot()
+        # Or the trend function
+        krig_second.plot_trend()
+    
+    def test_reg_krig_spline(self):
+        num_p = 5**2
+        # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
+        sp = samplingplan()
+        # X = sp.grid(num_p)
+        # X = sp.rlh(num_p)
+        X = sp.MC(num_p)
+        
+        # Next, we define the problem we would like to solve
+        testfun = pyKriging.testfunctions().branin
+        y = testfun(X)
+    
+        krig_spline = regression_kriging(X, y, testfunction=testfun, reg='Bspline')
+        krig_spline.train()
+    
+        pdb.set_trace()
+        # And plot the results
+        krig_spline.plot()
+        krig_spline.plot_trend()
+        
+        # def test_plot_spline_basis_fun(self):
+        #     num_p = 100
+        #     # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
+        #     sp = samplingplan()
+        #     X = sp.grid(num_p)
+        #     # X = sp.rlh(num_p)
+        # 
+        # 
+        #     # Next, we define the problem we would like to solve
+        #     testfun = pyKriging.testfunctions().branin
+        #     y = testfun(X)
+        # 
+        #     krig_spline = regression_kriging(X, y, testfunction=testfun, reg='Bspline')
+        #     krig_spline.train()
+        #     pdb.set_trace()
+        #     krig_spline.Bspl.evaluate()
+        # 
+        #     vis_comp = vis.VisSurfTriangle()
+        #     krig_spline.Bspl.vis = vis_comp
+        #     krig_spline.Bspl.render(colormap=cm.coolwarm)
+            
+            # And plot the results
+            # krig_spline.plot()
+        
         

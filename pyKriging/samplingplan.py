@@ -4,17 +4,31 @@ import math as m
 import os
 import pickle
 import pyKriging
+import pdb
 
 
 class samplingplan():
-    def __init__(self,k=2):
+    def __init__(self, k=2):
         self.samplingplan = []
         self.k = k
         self.path = os.path.dirname(pyKriging.__file__)
         self.path = self.path+'/sampling_plans/'
-
-
-    def rlh(self,n,Edges=0):
+    
+    def MC(self, n):
+        
+        return np.random.rand(n, 2)
+        
+    def grid(self, n):
+        ''' generates ordered sampling points, grid-like
+        '''
+        # self.k is the dimension of the problem
+        n_side = np.sqrt(n)
+        x_side = np.linspace(0, 1, n_side)
+        x1, x2 = np.meshgrid(x_side, x_side)
+        
+        return np.stack((np.concatenate(x1), np.concatenate(x2)), axis=-1)
+    
+    def rlh(self, n, Edges=0):
         """
         Generates a random latin hypercube within the [0,1]^k hypercube
 
@@ -28,12 +42,12 @@ class samplingplan():
          """
 
         #pre-allocate memory
-        X = np.zeros((n,self.k))
+        X = np.zeros((n, self.k))
 
         #exclude 0
 
         for i in range(0,self.k):
-            X[:,i] = np.transpose(np.random.permutation(np.arange(1,n+1,1)))
+            X[:, i] = np.transpose(np.random.permutation(np.arange(1,n+1,1)))
 
         if Edges == 1:
             X = (X-1)/(n-1)
@@ -42,7 +56,7 @@ class samplingplan():
 
         return X
 
-    def optimallhc(self,n,population=30, iterations=30, generation=False):
+    def optimallhc(self, n, population=30, iterations=30, generation=False):
             """
             Generates an optimized Latin hypercube by optimizing the Morris-Mitchell
             criterion for a range of exponents and plots the first two dimensions of
@@ -140,7 +154,7 @@ class samplingplan():
             return Index
 
 
-    def perturb(self,X,PertNum):
+    def perturb(self, X, PertNum):
         """
         Interchanges pairs of randomly chosen elements within randomly
         chosen columns of a sampling plan a number of times. If the plan is
