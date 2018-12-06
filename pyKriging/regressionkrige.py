@@ -30,7 +30,7 @@ class regression_kriging(matrixops):
         self.sigma = 0
         self.normRange = []
         self.ynormRange = []
-        self.normalizeData()
+        self.normalizeData() # normalizes the input data!
         self.sp = samplingplan(self.k)
         self.reg = reg
         self.updateData()
@@ -350,7 +350,7 @@ class regression_kriging(matrixops):
                 args['generation_count'] += 1
                 return False or (num_evaluations >= max_evaluations)
 
-    def train(self, optimizer='pso'):
+    def train(self, optimizer='ga'):
         '''
         The function trains the hyperparameters of the Kriging model.
         :param optimizer: Two optimizers are implemented, a Particle Swarm Optimizer or a GA
@@ -711,7 +711,7 @@ class regression_kriging(matrixops):
         else:
             plt.savefig('pyKrigingResult.png')
 
-    def calcuatemeanMSE(self, p2s=200, points=None):
+    def calcuatemeanMSE(self, p2s=2000, points=None):
         '''
         This function calculates the mean MSE metric of the model by evaluating MSE at a number of points.
         :param p2s: Points to Sample, the number of points to sample the mean squared error at. Ignored if the points argument is specified

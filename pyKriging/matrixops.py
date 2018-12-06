@@ -82,6 +82,7 @@ class matrixops():
                 x0.append(pt[dim])
             fun = lambda x: self.compute_q(self.update_bspl(Bspl, x, dim), X, Y, R, dim)
             opt_res = scipy.optimize.minimize(fun, x0, method='BFGS', options={'disp': False})
+            
             if opt_res.success:
                 Bspl = self.update_bspl(Bspl, opt_res.x, dim)
                 
@@ -136,11 +137,11 @@ class matrixops():
                     initial_CP.append([i_vec[i], j_vec[j], mean_inp])
             Bspl.set_ctrlpts(initial_CP, ctrlpts_u, ctrlpts_v)
             
-            Bspl.knotvector_u = utilities.generate_knot_vector(Bspl.degree_u, ctrlpts_u)
-            Bspl.knotvector_v = utilities.generate_knot_vector(Bspl.degree_v, ctrlpts_v)
+            # Bspl.knotvector_u = utilities.generate_knot_vector(Bspl.degree_u, ctrlpts_u)
+            # Bspl.knotvector_v = utilities.generate_knot_vector(Bspl.degree_v, ctrlpts_v)
             
-            #Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_u + 1).tolist())
-            #Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_v + 1).tolist())
+            Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_u + 1).tolist())
+            Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_v + 1).tolist())
             
             U = Bspl.knotvector_u
             V = Bspl.knotvector_v
@@ -155,11 +156,12 @@ class matrixops():
                 # Collect all basis function in one vector
                 
                 [u, v] = x[i]  # parameterisation ?!
-                span_u = helpers.find_span_linear(p_u, U, n_u, u) #Correct?
+                span_u = helpers.find_span_linear(p_u, U, n_u, u)  # Correct?
                 # span_u = helpers.find_span_binsearch(p_u, U, n_u, u)
                 f_nz_u = helpers.basis_function(p_u, U, span_u, u)
                 Nu = np.zeros((n_u,))
                 Nu[(span_u - p_u): (span_u + 1)] = f_nz_u
+                pdb.set_trace()
                 
                 # span_v = helpers.find_span_binsearch(p_v, V, n_v, v)
                 span_v = helpers.find_span_linear(p_v, V, n_v, v)
@@ -193,6 +195,7 @@ class matrixops():
         if self.reg != 'Bspline':
             for i in range(0, self.n):
                 F.append(self.mean_f(self.X[i], None).tolist())
+                
             self.F = np.array(F)
         elif self.reg == 'Bspline':
             # FUTURE, set bspline variables before this function call
@@ -205,9 +208,9 @@ class matrixops():
         self.Psi = np.zeros((self.n, self.n), dtype=np.float)
         self.one = np.ones(self.n)
         self.psi = np.zeros((self.n, 1))
-        newPsi = np.exp(-np.sum(self.theta*np.power(self.distance,self.pl), axis=2))
-        self.Psi = np.triu(newPsi,1)
-        self.Psi = self.Psi + self.Psi.T + np.mat(eye(self.n))+np.multiply(np.mat(eye(self.n)),np.spacing(1))
+        newPsi = np.exp(-np.sum(self.theta*np.power(self.distance, self.pl), axis=2))
+        self.Psi = np.triu(newPsi, 1)
+        self.Psi = self.Psi + self.Psi.T + np.mat(eye(self.n)) + np.multiply(np.mat(eye(self.n)), np.spacing(1))
         self.U = np.linalg.cholesky(self.Psi)
         self.U = self.U.T  # Upper triangular cholesky decomposition.
 
@@ -215,9 +218,14 @@ class matrixops():
         self.Psi = np.zeros((self.n, self.n), dtype=np.float)
         self.one = np.ones(self.n)
         self.psi = np.zeros((self.n, 1))
-        newPsi = np.exp(-np.sum(self.theta*np.power(self.distance,self.pl), axis=2))
+        newPsi = np.exp(-np.sum(self.theta * np.power(self.distance, self.pl), axis=2))
         self.Psi = np.triu(newPsi, 1)
         self.Psi = self.Psi + self.Psi.T + eye(self.n) + eye(self.n) * (self.Lambda)
+        
+        # print('Remember to remove this!')
+        # self.Psi = np.diag(np.ones((len(self.X),)))
+        
+        
         self.U = np.linalg.cholesky(self.Psi)
         self.U = np.matrix(self.U.T)
 
@@ -256,6 +264,10 @@ class matrixops():
             
             # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
             self.SigmaSqr = ((self.y - self.F.dot(self.beta)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.F.dot(self.beta)))))) / self.n
+        else:
+            print('Unknown selection in regneglikelihood function')
+            raise NotImplementedError
+            
         self.NegLnLike = -1. * (-(self.n / 2.) * np.log(self.SigmaSqr) - 0.5 * self.LnDetPsi)
     
     def trend_fun_val(self, x):

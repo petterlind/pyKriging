@@ -14,22 +14,24 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
-
-class Test_RSM(unittest.TestCase):
-    
+class RMSE():
     def __init__(self, *args, **kwargs):
-        unittest.TestCase.__init__(self,*args,**kwargs)
-        
+
         num_p = 10**2
         # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
         sp = samplingplan(2)
         self.RMSE_mean = []
         self.RMSE_std = []
-        self.X = sp.rlh(num_p)
+        # self.X = sp.rlh(num_p)
+        # [3e-5 5e-4 2e-3] num_p = 10**2 rlh
+        
         # self.X = sp.grid(num_p)
-        # self.X = sp.MC(num_p)
+        # [1e-3 5e-4 4e-3] num_p = 10**2 rlh
+        
+        self.X = sp.MC(num_p)
+        
     
-    def test_reg_krig_first(self):
+    def reg_krig_first(self):
         # Next, we define the problem we would like to solve
         testfun = pyKriging.testfunctions().branin
         y = testfun(self.X)
@@ -46,7 +48,7 @@ class Test_RSM(unittest.TestCase):
         self.RMSE_mean.append(RMSE[0])
         self.RMSE_std.append(RMSE[1])
     
-    def test_reg_krig_second(self):
+    def reg_krig_second(self):
         # Next, we define the problem we would like to solve
         testfun = pyKriging.testfunctions().branin
         y = testfun(self.X)
@@ -63,7 +65,7 @@ class Test_RSM(unittest.TestCase):
         self.RMSE_mean.append(RMSE[0])
         self.RMSE_std.append(RMSE[1])
     
-    def test_reg_krig_spline(self):
+    def reg_krig_spline(self):
         # Next, we define the problem we would like to solve
         testfun = pyKriging.testfunctions().branin
         y = testfun(self.X)
@@ -72,37 +74,17 @@ class Test_RSM(unittest.TestCase):
         krig_spline.train()
     
         # And plot the results
-        # krig_spline.plot()
-        # krig_spline.plot_trend()
+        krig_spline.plot()
+        krig_spline.plot_trend()
     
         RMSE = krig_spline.calcuatemeanMSE()
-        pdb.set_trace()
         self.RMSE_mean.append(RMSE[0])
         self.RMSE_std.append(RMSE[1])
         
         pdb.set_trace()
-    # def test_plot_spline_basis_fun(self):
-    #     num_p = 100
-    #     # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
-    #     sp = samplingplan()
-    #     self.X = sp.grid(num_p)
-    #     # self.X = sp.rlh(num_p)
-    # 
-    # 
-    #     # Next, we define the problem we would like to solve
-    #     testfun = pyKriging.testfunctions().branin
-    #     y = testfun(self.X)
-    # 
-    #     krig_spline = regression_kriging(self.X, y, testfunction=testfun, reg='Bspline')
-    #     krig_spline.train()
-    #     pdb.set_trace()
-    #     krig_spline.Bspl.evaluate()
-    # 
-    #     vis_comp = vis.VisSurfTriangle()
-    #     krig_spline.Bspl.vis = vis_comp
-    #     krig_spline.Bspl.render(colormap=cm.coolwarm)
-    # 
-    #     # And plot the results
-    #     # krig_spline.plot()
-        
-        
+
+run = RMSE()
+run.reg_krig_first()
+run.reg_krig_second()
+run.reg_krig_spline()
+print(run.RMSE_mean)
