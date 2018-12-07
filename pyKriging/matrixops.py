@@ -80,17 +80,39 @@ class matrixops():
             x0 = []
             for pt in Bspl.ctrlpts:
                 x0.append(pt[dim])
+                
             fun = lambda x: self.compute_q(self.update_bspl(Bspl, x, dim), X, Y, R, dim)
-            opt_res = scipy.optimize.minimize(fun, x0, method='BFGS', options={'disp': False})
-            
+            opt_res = scipy.optimize.minimize(fun, x0, method='SLSQP', options={'disp': False})
             if opt_res.success:
                 Bspl = self.update_bspl(Bspl, opt_res.x, dim)
-                
+                # self.plot_trend()
             else:
+                pdb.set_trace()
                 print('optimization failed!')
                 raise ValueError
         
         return Bspl
+        
+    def basis_full(self, basis_u, degree_u, spans_u):
+        ''' Adds the missing zeros to the base vector 
+            has to be called one time per knot vector'''
+        
+        # rewrite as a loop
+        start_u = self.Bspl._knot_vector_u[self.Bspl._degree_u]
+        # stop_u = self.Bspl._knot_vector_u[-(self.Bspl._degree_u + 1)]
+        
+        [start_u_ind] = [i for i, j in enumerate(self.Bspl._knot_vector_u) if j == start_u]
+        # [stop_u] = [i for i, j in enumerate(self.Bspl._knot_vector_u) if j == stop_u]
+        
+        base_full = []
+        num = int(np.sqrt(len(self.Bspl.ctrlpts)))
+        for i, ub in enumerate(basis_u):
+            ind = spans_u[i] - start_u_ind
+            base = [0] * num
+            base[ind:ind + len(ub)] = ub
+            base_full.append(base)
+            
+        return base_full
         
     def mean_f(self, x, Bspl):
         
@@ -119,67 +141,66 @@ class matrixops():
             Bspl = BSpline.Surface()
             Bspl.delta = 0.025
             
-            p_u = 2
-            p_v = 2
+            degree_u = 2
+            degree_v = 2
             
-            Bspl.degree_u = p_u
-            Bspl.degree_v = p_v
+            Bspl.degree_u = degree_u
+            Bspl.degree_v = degree_v
             
             # Set ctrlpts
-            ctrlpts_u = 4
-            ctrlpts_v = 4
-            i_vec = np.linspace(0, 1, num=ctrlpts_u)
-            j_vec = np.linspace(0, 1, num=ctrlpts_v)
+            ctrlpts_size_u = 4
+            ctrlpts_size_v = 4
+            
+            i_vec = np.linspace(0, 1, num=ctrlpts_size_u)
+            j_vec = np.linspace(0, 1, num=ctrlpts_size_v)
             initial_CP = []  # np.zeros((6, 6, 3))
             mean_inp = np.sum(self.y) / len(self.y)
             for i in range(0, len(i_vec)):
                 for j in range(0, len(j_vec)):
                     initial_CP.append([i_vec[i], j_vec[j], mean_inp])
-            Bspl.set_ctrlpts(initial_CP, ctrlpts_u, ctrlpts_v)
+            Bspl.set_ctrlpts(initial_CP, ctrlpts_size_u, ctrlpts_size_v)
             
             # Bspl.knotvector_u = utilities.generate_knot_vector(Bspl.degree_u, ctrlpts_u)
             # Bspl.knotvector_v = utilities.generate_knot_vector(Bspl.degree_v, ctrlpts_v)
             
-            Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_u + 1).tolist())
-            Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_v + 1).tolist())
-            
-            U = Bspl.knotvector_u
-            V = Bspl.knotvector_v
-            
-            n_u = len(U) - p_u - 1  # 6st
-            n_v = len(V) - p_v - 1  # 6st
+            Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_size_u + 1).tolist())
+            Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_size_v + 1).tolist())
             
             self.Bspl = Bspl
             
+            start_u = Bspl._knot_vector_u[Bspl._degree_u]
+            stop_u = Bspl._knot_vector_u[-(Bspl._degree_u + 1)]
+            
+            start_v = Bspl._knot_vector_u[Bspl._degree_v]
+            stop_v = Bspl._knot_vector_u[-(Bspl._degree_v + 1)]
+        
+            # Map variables to valid knot space
+            knots_u = start_u + (stop_u - start_u) * x[:, 0]
+            knots_v = start_v + (stop_v - start_v) * x[:, 1]
+            
+            spans_u = helpers.find_spans(degree_u, Bspl.knotvector_u, ctrlpts_size_u, knots_u, Bspl._span_func)
+            spans_v = helpers.find_spans(degree_v, Bspl.knotvector_v, ctrlpts_size_v, knots_v, Bspl._span_func)
+    
+            basis_u = helpers.basis_functions(degree_u, Bspl.knotvector_u, spans_u, knots_u)
+            basis_v = helpers.basis_functions(degree_v, Bspl.knotvector_v, spans_v, knots_v)
+            
+            # Adds the zeros for the missing bases!
+            basis_u_full = self.basis_full(basis_u, degree_u, spans_u)
+            basis_v_full = self.basis_full(basis_v, degree_v, spans_v)
+            
             B_row = None
-            for i in range(len(x)):
-                # Collect all basis function in one vector
-                
-                [u, v] = x[i]  # parameterisation ?!
-                span_u = helpers.find_span_linear(p_u, U, n_u, u)  # Correct?
-                # span_u = helpers.find_span_binsearch(p_u, U, n_u, u)
-                f_nz_u = helpers.basis_function(p_u, U, span_u, u)
-                Nu = np.zeros((n_u,))
-                Nu[(span_u - p_u): (span_u + 1)] = f_nz_u
-                pdb.set_trace()
-                
-                # span_v = helpers.find_span_binsearch(p_v, V, n_v, v)
-                span_v = helpers.find_span_linear(p_v, V, n_v, v)
-                f_nz_v = helpers.basis_function(p_v, U, span_v, v)
-                
-                Nv = np.zeros((n_v,))
-                Nv[(span_v - p_v): (span_v + 1)] = f_nz_v
-                
+            for i in range(len(basis_u_full)):
                 # Following Nils Carlssons master thesis
-                A_conc = np.concatenate(np.outer(Nu, Nv))
+                A_conc = np.concatenate(np.outer(basis_u_full[i], basis_v_full[i]))
                 
                 if B_row is None:
                     B_row = A_conc
                 else:
                     B_row = np.append(B_row, A_conc)  # one long row of data, Rewrite for speed?
-            
+                        
             F = np.reshape(B_row, (-1, len(A_conc)))  # Sort up the control points in one vector
             return F
+            
         else:
             print('Unknown trend function type')
             raise ValueError
@@ -287,22 +308,25 @@ class matrixops():
             self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
             
         try:
+            
             z = self.y - np.dot(self.F, self.beta)
+                
         except:
-            print('EXCEPT!!!')
+            print('EXCEPT!!! (constant mean value)')
             z = self.y - self.one.dot(self.mu)
         a = np.linalg.solve(self.U.T, z)
         b = np.linalg.solve(self.U, a)
         c = self.psi.T.dot(b)
-
+            
         try:
             if self.reg != 'Bspline':
-                f = self.mean_f(x, None).dot(self.beta) + c 
+                f = self.mean_f(x, None).dot(self.beta) + c
+                
             elif self.reg == 'Bspline':
                 f = self.Bspl.evaluate_single(x)[-1] + c
         except:
+            print('EXCEPT!!! (constant mean value)')
             f = self.mu + c
-            print('EXCEPT!!!')
         return f[0]
 
     def predicterr_normalized(self, x):

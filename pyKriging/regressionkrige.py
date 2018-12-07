@@ -350,7 +350,7 @@ class regression_kriging(matrixops):
                 args['generation_count'] += 1
                 return False or (num_evaluations >= max_evaluations)
 
-    def train(self, optimizer='ga'):
+    def train(self, optimizer='pso'):
         '''
         The function trains the hyperparameters of the Kriging model.
         :param optimizer: Two optimizers are implemented, a Particle Swarm Optimizer or a GA
@@ -391,7 +391,7 @@ class regression_kriging(matrixops):
                                   pop_size=50,
                                   maximize=False,
                                   bounder=ec.Bounder(lowerBound, upperBound),
-                                  max_evaluations=30000,
+                                  max_evaluations=1000,
                                   num_elites=10,
                                   mutation_rate=.05)
 

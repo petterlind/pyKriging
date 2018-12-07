@@ -17,7 +17,7 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 class RMSE():
     def __init__(self, *args, **kwargs):
 
-        num_p = 10**2
+        num_p = 6**2
         # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
         sp = samplingplan(2)
         self.RMSE_mean = []
@@ -25,10 +25,10 @@ class RMSE():
         # self.X = sp.rlh(num_p)
         # [3e-5 5e-4 2e-3] num_p = 10**2 rlh
         
-        # self.X = sp.grid(num_p)
+        self.X = sp.grid(num_p)
         # [1e-3 5e-4 4e-3] num_p = 10**2 rlh
-        
-        self.X = sp.MC(num_p)
+
+        # self.X = sp.MC(num_p)
         
     
     def reg_krig_first(self):
@@ -47,6 +47,7 @@ class RMSE():
         RMSE = krig_first.calcuatemeanMSE()
         self.RMSE_mean.append(RMSE[0])
         self.RMSE_std.append(RMSE[1])
+        pdb.set_trace()
     
     def reg_krig_second(self):
         # Next, we define the problem we would like to solve
@@ -64,6 +65,7 @@ class RMSE():
         RMSE = krig_second.calcuatemeanMSE()
         self.RMSE_mean.append(RMSE[0])
         self.RMSE_std.append(RMSE[1])
+        pdb.set_trace()
     
     def reg_krig_spline(self):
         # Next, we define the problem we would like to solve
@@ -80,10 +82,10 @@ class RMSE():
         RMSE = krig_spline.calcuatemeanMSE()
         self.RMSE_mean.append(RMSE[0])
         self.RMSE_std.append(RMSE[1])
-        
         pdb.set_trace()
 
 run = RMSE()
+# KOMMENTAR?!
 run.reg_krig_first()
 run.reg_krig_second()
 run.reg_krig_spline()
