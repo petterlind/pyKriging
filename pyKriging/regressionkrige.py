@@ -37,8 +37,8 @@ class regression_kriging(matrixops):
         self.updateModel()
         self.thetamin = 1e-4
         self.thetamax = 100
-        self.pmin = 1.81231
-        self.pmax = 2
+        self.pmin = 1.9
+        self.pmax = 2.1
                     # regression order
 
         # Setup functions for tracking history
@@ -350,7 +350,7 @@ class regression_kriging(matrixops):
                 args['generation_count'] += 1
                 return False or (num_evaluations >= max_evaluations)
 
-    def train(self, optimizer='pso'):
+    def train(self, optimizer='ga'):
         '''
         The function trains the hyperparameters of the Kriging model.
         :param optimizer: Two optimizers are implemented, a Particle Swarm Optimizer or a GA
@@ -401,11 +401,11 @@ class regression_kriging(matrixops):
             preLOP = copy.deepcopy(newValues)
             locOP_bounds = []
             for i in range(self.k):
-                locOP_bounds.append( [self.thetamin, self.thetamax] )
+                locOP_bounds.append([self.thetamin, self.thetamax])
 
             for i in range(self.k):
-                locOP_bounds.append( [self.pmin, self.pmax] )
-            locOP_bounds.append( [0,1] )
+                locOP_bounds.append([self.pmin, self.pmax])
+            locOP_bounds.append([0, 1])
 
             # Let's quickly double check that we're at the optimal value by running a quick local optimizaiton
             lopResults = minimize(self.fittingObjective_local, newValues, method='SLSQP', bounds=locOP_bounds, options={'disp': False})
@@ -425,7 +425,7 @@ class regression_kriging(matrixops):
             else:
                 break
 
-    def fittingObjective(self,candidates, args):
+    def fittingObjective(self, candidates, args):
         '''
         The objective for a series of candidates from the hyperparameter global search.
         :param candidates: An array of candidate design vectors from the global optimizer
@@ -456,7 +456,7 @@ class regression_kriging(matrixops):
         :param entry: The same objective function as the global optimizer, but formatted for the local optimizer
         :return: The fitness of the surface at the hyperparameters specified in entry
         '''
-        f=10000
+        f = 10000
         for i in range(self.k):
             self.theta[i] = entry[i]
         for i in range(self.k):
@@ -475,11 +475,36 @@ class regression_kriging(matrixops):
     def plot_trend(self):
         x = y = np.arange(0, 1, 0.05)
         X, Y = np.meshgrid(x, y)
-        zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
         
         # real function
         z_real = np.array([self.testfunction([x, y]) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        Z_r = z_real.reshape(X.shape)
+        
+        
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+
+        # Plot the surface.
+        ax.plot_surface(X, Y, Z, cmap=cm.coolwarm)
+        ax.plot_wireframe(X, Y, Z_r)
+        
+        ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y))
+        
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.show()
+        
+    def plot_rad(self):
+        x = y = np.arange(0, 1, 0.005)
+        X, Y = np.meshgrid(x, y)
+        zs = np.array([self.predict([x, y], norm=False) - self.inversenormy(self.trend_fun_val([x, y])) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        Z = zs.reshape(X.shape)
+        
+        # real function
+        z_real = np.array([self.testfunction([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z_r = z_real.reshape(X.shape)
         
         
@@ -711,19 +736,24 @@ class regression_kriging(matrixops):
         else:
             plt.savefig('pyKrigingResult.png')
 
-    def calcuatemeanMSE(self, p2s=2000, points=None):
+    def calcuatemeanRRMSE(self, p2s=2000, points=None):
         '''
-        This function calculates the mean MSE metric of the model by evaluating MSE at a number of points.
+        This function calculates the mean relative MSE metric of the model by evaluating MSE at a number of points.
         :param p2s: Points to Sample, the number of points to sample the mean squared error at. Ignored if the points argument is specified
         :param points: an array of points to sample the model at
         :return: the mean value of MSE and the standard deviation of the MSE points
         '''
         if points is None:
             points = self.sp.rlh(p2s)
-        values = np.zeros(len(points))
-        for enu, point in enumerate(points):
-            values[enu] = self.predict_var(point, norm=False)
-        return np.mean(values), np.std(values)
+            inside = 0
+            den = 0
+            
+            for x, y in zip(np.ravel(points[:, 0]), np.ravel(points[:, 1])):
+                inside += (self.predict([x, y], norm=False) - self.inversenormy(self.trend_fun_val([x, y])))**2
+                den += self.predict([x, y], norm=False)
+                
+            RRMSE = np.sqrt((1 / len(np.ravel(points[:, 0]))) * inside) / den
+            return RRMSE * 100  # In percentage!
 
     def snapshot(self):
         '''

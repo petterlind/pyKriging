@@ -12,10 +12,9 @@ class samplingplan():
         self.samplingplan = []
         self.k = k
         self.path = os.path.dirname(pyKriging.__file__)
-        self.path = self.path+'/sampling_plans/'
+        self.path = self.path + '/sampling_plans/'
     
     def MC(self, n):
-        
         return np.random.rand(n, 2)
         
     def grid(self, n):

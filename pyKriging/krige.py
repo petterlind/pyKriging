@@ -182,7 +182,8 @@ class kriging(matrixops):
         :return: Returns the 'real world' predicted value
         '''
         X = copy.deepcopy(X)
-        X = self.normX(X)
+        X = self.normX(X)  # WTF?
+        pdb.set_trace()
         return self.inversenormy(self.predict_normalized(X))
 
     def predict_var(self, X):

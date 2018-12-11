@@ -82,7 +82,7 @@ class matrixops():
                 x0.append(pt[dim])
                 
             fun = lambda x: self.compute_q(self.update_bspl(Bspl, x, dim), X, Y, R, dim)
-            opt_res = scipy.optimize.minimize(fun, x0, method='SLSQP', options={'disp': False})
+            opt_res = scipy.optimize.minimize(fun, x0, method='BFGS', options={'disp': False, 'maxiter': 1e5})
             if opt_res.success:
                 Bspl = self.update_bspl(Bspl, opt_res.x, dim)
                 # self.plot_trend()
@@ -148,8 +148,8 @@ class matrixops():
             Bspl.degree_v = degree_v
             
             # Set ctrlpts
-            ctrlpts_size_u = 4
-            ctrlpts_size_v = 4
+            ctrlpts_size_u = 3  #
+            ctrlpts_size_v = 3  #
             
             i_vec = np.linspace(0, 1, num=ctrlpts_size_u)
             j_vec = np.linspace(0, 1, num=ctrlpts_size_v)
@@ -323,6 +323,9 @@ class matrixops():
                 f = self.mean_f(x, None).dot(self.beta) + c
                 
             elif self.reg == 'Bspline':
+                
+                if np.max(x) > 1 or np.min(x) < 0:
+                    pdb.set_trace()
                 f = self.Bspl.evaluate_single(x)[-1] + c
         except:
             print('EXCEPT!!! (constant mean value)')
@@ -350,7 +353,7 @@ class matrixops():
     def regression_predicterr_normalized(self, x):
         for i in range(self.n):
             try:
-                self.psi[i]=np.exp(-np.sum(self.theta*np.power((np.abs(self.X[i]-x)),self.pl)))
+                self.psi[i]=np.exp(-np.sum(self.theta*np.power((np.abs(self.X[i]-x)), self.pl)))
             except Exception as e:
                 print(Exception,e)
         try:

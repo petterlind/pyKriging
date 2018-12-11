@@ -1,5 +1,5 @@
 ﻿import numpy as np
-
+import pdb
 
 class testfunctions():
     def linear(self, X):
@@ -60,6 +60,7 @@ class testfunctions():
         return y
 
     def branin(self, X):
+        
         try:
             X.shape[1]
         except:
@@ -69,6 +70,11 @@ class testfunctions():
             raise Exception
         x = X[:, 0]
         y = X[:, 1]
+        
+        # x = X[:, 1] # Inversed branin
+        # y = X[:, 0]
+        
+        
         X1 = 15*x-5
         X2 = 15*y
         a = 1
