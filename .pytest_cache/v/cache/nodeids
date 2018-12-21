@@ -1,4 +1,5 @@
 [
+  "pyKriging/test_matrixops.py::Test_RSM::test_plot_spline_basis_fun",
   "pyKriging/test_matrixops.py::Test_RSM::test_reg_krig_first",
   "pyKriging/test_matrixops.py::Test_RSM::test_reg_krig_second",
   "pyKriging/test_matrixops.py::Test_RSM::test_reg_krig_spline"

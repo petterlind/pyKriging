@@ -17,12 +17,17 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 class RMSE():
     def __init__(self, *args, **kwargs):
 
-        num_p = 18
+        num_p = 30
         # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
         sp = samplingplan(2)
         self.X = sp.rlh(num_p)
         self.X = sp.optimallhc(num_p)
         self.RRMSE = {'First': None, 'Second': None, 'Third': None, 'Spline': None}
+        self.R_sq = {'First': None, 'Second': None, 'Third': None, 'Spline': None}
+        
+        # testfun = pyKriging.testfunctions().branin
+        self.testfun = pyKriging.testfunctions().rosenbrock
+        self.y = self.testfun(self.X)
         
         # [3e-5 5e-4 2e-3] num_p = 10**2 rlh # non-periodic knot span 
         
@@ -34,25 +39,19 @@ class RMSE():
     
     def reg_krig_first(self):
         # Next, we define the problem we would like to solve
-        testfun = pyKriging.testfunctions().branin
-        y = testfun(self.X)
-    
-        krig_first = regression_kriging(self.X, y, testfunction=testfun, reg='First')
+        krig_first = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='First')
         krig_first.train()
     
         # And plot the results
         # krig_first.plot()
         # Or the trend function
         # krig_first.plot_trend()
-    
-        self.RRMSE['First'] = krig_first.calcuatemeanRRMSE()
-    # 
+        self.R_sq['First'], self.RRMSE['First'] = krig_first.RRMSE_R2()
+
     def reg_krig_second(self):
         # Next, we define the problem we would like to solve
-        testfun = pyKriging.testfunctions().branin
-        y = testfun(self.X)
     
-        krig_second = regression_kriging(self.X, y, testfunction=testfun, reg='Second')
+        krig_second = regression_kriging(self.X, y, testfunction=self.testfun, reg='Second')
         krig_second.train()
     
         # And plot the results
@@ -61,18 +60,17 @@ class RMSE():
         # Or the trend function
         # krig_second.plot_trend()
         
-        self.RRMSE['Second'] = krig_second.calcuatemeanRRMSE()
+        self.R_sq['Second'], self.RRMSE['Second'] = krig_second.RRMSE_R2()
     
     def reg_krig_spline(self):
         # Next, we define the problem we would like to solve
-        testfun = pyKriging.testfunctions().branin
-        y = testfun(self.X)
     
-        krig_spline = regression_kriging(self.X, y, testfunction=testfun, reg='Bspline')
+        krig_spline = regression_kriging(self.X, y, testfunction=self.testfun, reg='Bspline')
         krig_spline.train()
-    
+        
+        self.R_sq['Spline'], self.RRMSE['Spline'] = krig_spline.RRMSE_R2()
         # And plot the results
-        # krig_spline.plot()
+        krig_spline.plot()
         # krig_spline.plot_trend()
         
         ## PLOT TREND!
@@ -91,10 +89,11 @@ class RMSE():
         # krig_spline.Bspl.render(colormap=cm.coolwarm)
         ## END PLOT TREND
         
-        self.RRMSE['Spline'] = krig_spline.calcuatemeanRRMSE()
+        
 
 avg = {'First': 0, 'Second': 0, 'Third': 0, 'Spline': 0}
-numiter = 50
+R_avg = {'First': 0, 'Second': 0, 'Third': 0, 'Spline': 0}
+numiter = 10
 for i in range(numiter):
     run = RMSE()
     run.reg_krig_first()
@@ -105,11 +104,13 @@ for i in range(numiter):
     for key in run.RRMSE:
         if run.RRMSE[key] is not None:
             avg[key] += run.RRMSE[key]
+            R_avg[key] += run.R_sq[key]
             
 for key in avg:
     if avg[key] is not 0:
         avg[key] = avg[key] / float(numiter)
+        R_avg[key] = R_avg[key] / float(numiter)
     # elif avg[key] is 0:
         # del avg[key]
 print(avg)
-pdb.set_trace()
+print(R_avg)

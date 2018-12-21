@@ -28,7 +28,27 @@ class Test_RSM(unittest.TestCase):
         self.X = sp.rlh(num_p)
         # self.X = sp.grid(num_p)
         # self.X = sp.MC(num_p)
-    # 
+    def test_plot_spline_basis_fun(self):
+        num_p = 100
+        # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
+        sp = samplingplan()
+        self.X = sp.grid(num_p)
+        # self.X = sp.rlh(num_p)
+    
+    
+        # Next, we define the problem we would like to solve
+        testfun = pyKriging.testfunctions().branin
+        y = testfun(self.X)
+    
+        krig_spline = regression_kriging(self.X, y, testfunction=testfun, reg='Bspline')
+        krig_spline.train()
+        pdb.set_trace()
+        krig_spline.Bspl.evaluate()
+    
+        vis_comp = vis.VisSurfTriangle()
+        krig_spline.Bspl.vis = vis_comp
+        krig_spline.Bspl.render(colormap=cm.coolwarm)
+            
     def test_reg_krig_first(self):
         # Next, we define the problem we would like to solve
         testfun = pyKriging.testfunctions().branin
@@ -52,7 +72,6 @@ class Test_RSM(unittest.TestCase):
         krig_second.train()
     
         # And plot the results
-        pdb.set_trace()
         krig_second.plot()
         # pdb.set_trace()
         # Or the trend function
@@ -83,35 +102,12 @@ class Test_RSM(unittest.TestCase):
         krig_spline = regression_kriging(self.X, y, testfunction=testfun, reg='Bspline')
         krig_spline.train()
         
-        pdb.set_trace()
-        
         # And plot the results
         krig_spline.plot()
         krig_spline.plot_trend()
         krig_spline.plot_rad()
     
-    # def test_plot_spline_basis_fun(self):
-    #     num_p = 100
-    #     # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
-    #     sp = samplingplan()
-    #     self.X = sp.grid(num_p)
-    #     # self.X = sp.rlh(num_p)
-    # 
-    # 
-    #     # Next, we define the problem we would like to solve
-    #     testfun = pyKriging.testfunctions().branin
-    #     y = testfun(self.X)
-    # 
-    #     krig_spline = regression_kriging(self.X, y, testfunction=testfun, reg='Bspline')
-    #     krig_spline.train()
-    #     pdb.set_trace()
-    #     krig_spline.Bspl.evaluate()
-    # 
-    #     vis_comp = vis.VisSurfTriangle()
-    #     krig_spline.Bspl.vis = vis_comp
-    #     krig_spline.Bspl.render(colormap=cm.coolwarm)
-    # 
-    #     # And plot the results
-    #     # krig_spline.plot()
+
+
         
         

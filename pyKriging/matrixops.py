@@ -41,10 +41,6 @@ class matrixops():
         
     def update_bspl(self, Bspl, inp, dim):
         
-        # WARNING hard coded stuff!
-        # ctrlpts_u = 3
-        # ctrlpts_v = 3
-
         CP = []
         for comp in Bspl.ctrlpts:
             for in_comp in comp:
@@ -141,15 +137,15 @@ class matrixops():
             Bspl = BSpline.Surface()
             Bspl.delta = 0.025
             
-            degree_u = 2
-            degree_v = 2
+            degree_u = 3
+            degree_v = 3
             
             Bspl.degree_u = degree_u
             Bspl.degree_v = degree_v
             
             # Set ctrlpts
-            ctrlpts_size_u = 3  #
-            ctrlpts_size_v = 3  #
+            ctrlpts_size_u = 4
+            ctrlpts_size_v = 4
             
             i_vec = np.linspace(0, 1, num=ctrlpts_size_u)
             j_vec = np.linspace(0, 1, num=ctrlpts_size_v)
@@ -323,9 +319,6 @@ class matrixops():
                 f = self.mean_f(x, None).dot(self.beta) + c
                 
             elif self.reg == 'Bspline':
-                
-                if np.max(x) > 1 or np.min(x) < 0:
-                    pdb.set_trace()
                 f = self.Bspl.evaluate_single(x)[-1] + c
         except:
             print('EXCEPT!!! (constant mean value)')

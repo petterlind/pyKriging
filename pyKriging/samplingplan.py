@@ -26,6 +26,24 @@ class samplingplan():
         x1, x2 = np.meshgrid(x_side, x_side)
         
         return np.stack((np.concatenate(x1), np.concatenate(x2)), axis=-1)
+        
+    def circle(self, n):
+        '''https://stackoverflow.com/questions/5837572/generate-a-random-point-within-a-circle-uniformly/50746409#50746409
+        Sample uniformly whithin a circle
+        '''
+        
+        # Cylindrical coord
+        R = 0.5
+        r = R * np.sqrt(np.random.rand(n, 1))
+        theta = np.random.rand(n, 1) * 2 * np.pi
+        
+        # Cartesian coordinates
+        centerX1 = 0.5
+        centerX2 = 0.5
+        x1 = centerX1 + r * np.cos(theta)
+        x2 = centerX2 + r * np.sin(theta)
+
+        return np.stack((np.concatenate(x1), np.concatenate(x2)), axis=-1)
     
     def rlh(self, n, Edges=0):
         """

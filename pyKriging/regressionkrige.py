@@ -388,11 +388,11 @@ class regression_kriging(matrixops):
             ea.terminator = self.no_improvement_termination
             final_pop = ea.evolve(generator=self.generate_population,
                                   evaluator=self.fittingObjective,
-                                  pop_size=50,
+                                  pop_size=100, # 50
                                   maximize=False,
                                   bounder=ec.Bounder(lowerBound, upperBound),
-                                  max_evaluations=1000,
-                                  num_elites=10,
+                                  max_evaluations=2000,
+                                  num_elites=10, # 10
                                   mutation_rate=.05)
 
         # This code updates the model with the hyperparameters found in the global search
@@ -736,25 +736,47 @@ class regression_kriging(matrixops):
         else:
             plt.savefig('pyKrigingResult.png')
 
-    def calcuatemeanRRMSE(self, p2s=2000, points=None):
+    def RRMSE_R2(self, p2s=2000, points=None):
         '''
-        This function calculates the mean relative MSE metric of the model by evaluating MSE at a number of points.
+        This function calculates the mean relative MSE metric of the model by evaluating MSE at a number of points and the Coefficient of determiniation.
         :param p2s: Points to Sample, the number of points to sample the mean squared error at. Ignored if the points argument is specified
         :param points: an array of points to sample the model at
         :return: the mean value of MSE and the standard deviation of the MSE points
         '''
         if points is None:
-            points = self.sp.rlh(p2s)
+            
+            #points = self.sp.rlh(p2s)
+            points = self.sp.circle(p2s)
             inside = 0
             den = 0
             
-            for x, y in zip(np.ravel(points[:, 0]), np.ravel(points[:, 1])):
-                inside += (self.predict([x, y], norm=False) - self.inversenormy(self.trend_fun_val([x, y])))**2
-                den += self.predict([x, y], norm=False)
+            SS_tot = 0
+            SS_res = 0
+            n = len(np.ravel(points[:, 0]))
+            
+            f_vec = np.zeros((n,))
+            y_vec = np.zeros((n,))
+            
+            for x, y, i in zip(np.ravel(points[:, 0]), np.ravel(points[:, 1]), np.arange(n)):
+                f_vec[i] = self.predict([x, y], norm=False)  # Norm false since self.X already in [0,1]
+                y_vec[i] = self.testfunction([x, y])
                 
-            RRMSE = np.sqrt((1 / len(np.ravel(points[:, 0]))) * inside) / den
-            return RRMSE * 100  # In percentage!
-
+            y_bar = np.sum(y_vec) / n
+            
+            for f_i, y_i in zip(f_vec, y_vec):
+                inside += (f_i - y_i)**2
+                den += f_i
+                
+                SS_tot += (y_i - y_bar)**2
+                SS_res += (y_i - f_i)**2
+            RRMSE = np.sqrt(inside / n) / den
+            R_sq = 1 - SS_res / SS_tot
+            
+            return R_sq, RRMSE * 100  # In percentage!
+            
+        else:
+            raise NotImplementedError
+            
     def snapshot(self):
         '''
         This function saves a 'snapshot' of the model when the function is called. This allows for a playback of the training process
@@ -782,7 +804,7 @@ class regression_kriging(matrixops):
             self.history['adjrsquared'].append( self.adjrsquares( self.history['rsquared'][-1], len( self.history['pointData'] )  ) )
         self.history[ 'lastPredictedPoints' ] = copy.deepcopy(currentPredictions)
 
-    def rsquared(self,actual, observed):
+    def rsquared(self, actual, observed):
         return np.corrcoef(observed, actual)[0,1] ** 2
 
     def adjrsquares(self, rsquared, obs):

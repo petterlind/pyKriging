@@ -74,9 +74,10 @@ class testfunctions():
         # x = X[:, 1] # Inversed branin
         # y = X[:, 0]
         
-        
+        # RESCALES THE DATA HERE?
         X1 = 15*x-5
         X2 = 15*y
+        
         a = 1
         b = 5.1/(4*np.pi**2)
         c = 5/np.pi
