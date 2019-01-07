@@ -6,10 +6,12 @@ import scipy
 import scipy.interpolate as interp
 import matplotlib.pyplot as plt
 import pdb
+import help_plots
 from geomdl.visualization import VisMPL as vis
 from geomdl import BSpline
-from geomdl import utilities
+from geomdl import utilities as geom_util
 from matplotlib import cm
+
 
 class matrixops():
 
@@ -26,7 +28,9 @@ class matrixops():
         self.updateData()
         
     def compute_q(self, Bspl, x, y, R, dim):
-        
+        '''
+        Computes the weighted least square norm in each direction (dim)
+        '''
         # Controlpoint vec
         p = []
         for comp in Bspl.ctrlpts:
@@ -39,6 +43,23 @@ class matrixops():
         norm = np.dot(Qdim - fun_val[:, dim], np.dot(R, Qdim - fun_val[:, dim]))  # generalized least square
         return norm
         
+    # def compute_CP_anal(self, Bspl, x, y, R, dim):
+    #     '''
+    #     Computes the analytical solution of the weighted least square problem used in kriging.
+    #     '''
+    #     # Controlpoint vec
+    #     p = []
+    #     for comp in Bspl.ctrlpts:
+    #         for in_comp in comp:
+    #             p.append(in_comp)
+    # 
+    #     pdb.set_trace()
+    #     Qdim = np.matmul(self.F, p[dim::3])
+    #     fun_val = np.stack((x[:, 0], x[:, 1], y), axis=-1)
+    # 
+    #     norm = np.dot(Qdim - fun_val[:, dim], np.dot(R, Qdim - fun_val[:, dim]))  # generalized least square
+    #     return norm
+        
     def update_bspl(self, Bspl, inp, dim):
         
         CP = []
@@ -46,28 +67,17 @@ class matrixops():
             for in_comp in comp:
                 CP.append(in_comp)
         
-        # if dim == 2:
-        #     # Assign
         CP[dim::3] = inp
-        # else:
-        #     CP[12 + dim] = inp[5]
         
         # Group
         x = CP[0::3]
         y = CP[1::3]
         z = CP[2::3]
-        # Hard-code initial and end values. INTE BARA PÅ EN PLATS !
-        
-        # x[0:ctrlpts_u:] = np.zeros((ctrlpts_u,))
-        # x[-ctrlpts_u:-1] = np.ones((ctrlpts_u,))
-        # y[0::3] = np.zeros((ctrlpts_v,))
-        # y[2::3] = np.ones((ctrlpts_v,))
         Bspl.ctrlpts = list(zip(x, y, z))
         return Bspl
     
     def controlPointsOpt(self, Bspl, X, Y, R):
         '''
-        
         TODO Test other algorithms,
         analytical derivative
         Rewrite fun as def for speed.
@@ -83,7 +93,6 @@ class matrixops():
                 Bspl = self.update_bspl(Bspl, opt_res.x, dim)
                 # self.plot_trend()
             else:
-                pdb.set_trace()
                 print('optimization failed!')
                 raise ValueError
         
@@ -97,7 +106,8 @@ class matrixops():
         start_u = self.Bspl._knot_vector_u[self.Bspl._degree_u]
         # stop_u = self.Bspl._knot_vector_u[-(self.Bspl._degree_u + 1)]
         
-        [start_u_ind] = [i for i, j in enumerate(self.Bspl._knot_vector_u) if j == start_u]
+        ind = [i for i, j in enumerate(self.Bspl._knot_vector_u) if j == start_u]
+        start_u_ind = ind[-1]
         # [stop_u] = [i for i, j in enumerate(self.Bspl._knot_vector_u) if j == stop_u]
         
         base_full = []
@@ -112,7 +122,7 @@ class matrixops():
         
     def mean_f(self, x, Bspl):
         
-        if self.reg is None or type == 'constant':
+        if self.reg is None or self.reg == 'constant':
             # n = len(x)
             # f = np.ones((n,))
             raise NotImplementedError
@@ -137,8 +147,8 @@ class matrixops():
             Bspl = BSpline.Surface()
             Bspl.delta = 0.025
             
-            degree_u = 3
-            degree_v = 3
+            degree_u = 2
+            degree_v = 2
             
             Bspl.degree_u = degree_u
             Bspl.degree_v = degree_v
@@ -156,12 +166,23 @@ class matrixops():
                     initial_CP.append([i_vec[i], j_vec[j], mean_inp])
             Bspl.set_ctrlpts(initial_CP, ctrlpts_size_u, ctrlpts_size_v)
             
-            # Bspl.knotvector_u = utilities.generate_knot_vector(Bspl.degree_u, ctrlpts_u)
-            # Bspl.knotvector_v = utilities.generate_knot_vector(Bspl.degree_v, ctrlpts_v)
+            ##### KNOT VECTOR ?! ################
+            # Bspl.knotvector_u = geom_util.generate_knot_vector(Bspl.degree_u, ctrlpts_size_u)
+            # Bspl.knotvector_v = geom_util.generate_knot_vector(Bspl.degree_v, ctrlpts_size_v)
             
-            Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_size_u + 1).tolist())
-            Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_size_v + 1).tolist())
-            
+            # open
+            # Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_size_u + 1).tolist())
+            # Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_size_v + 1).tolist())
+            ################
+            # Special 2
+            c_kn = geom_util.generate_knot_vector(Bspl.degree_u, ctrlpts_size_u)
+            c_kn[-3] = 0.6
+            c_kn[2] = 0.4
+            # 
+            Bspl.knotvector_u = c_kn
+            Bspl.knotvector_v = c_kn
+            # 
+            ################################################################
             self.Bspl = Bspl
             
             start_u = Bspl._knot_vector_u[Bspl._degree_u]
@@ -183,6 +204,12 @@ class matrixops():
             # Adds the zeros for the missing bases!
             basis_u_full = self.basis_full(basis_u, degree_u, spans_u)
             basis_v_full = self.basis_full(basis_v, degree_v, spans_v)
+            
+            plot_base = 0
+            
+            if plot_base:
+                ''' Ad hoc programmed helper function that plot the shape functions of the bspline in one direction, for a few different made up knot vectors.'''
+                help_plots.plot_base(ctrlpts_size_u, Bspl)
             
             B_row = None
             for i in range(len(basis_u_full)):
@@ -242,7 +269,6 @@ class matrixops():
         # print('Remember to remove this!')
         # self.Psi = np.diag(np.ones((len(self.X),)))
         
-        
         self.U = np.linalg.cholesky(self.Psi)
         self.U = np.matrix(self.U.T)
 
@@ -263,22 +289,27 @@ class matrixops():
     def regneglikelihood(self):
         self.LnDetPsi = 2 * np.sum(np.log(np.abs(np.diag(self.U))))
         # Weighted least square
-        if self.reg == 'First' or self.reg == 'Second' or self.reg == 'Third':
+        if self.reg == 'First' or self.reg == 'Second' or self.reg == 'Third': # or self.reg == 'Bspline':
                 self.beta = np.linalg.solve(np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.F))), (np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.y)))))
                 
                 # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
                 self.SigmaSqr = ((self.y - self.F.dot(self.beta)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.F.dot(self.beta)))))) / self.n
                 
         elif self.reg == 'Bspline':
-            
+        
+            # Test without values on the correlation matrix (weights)
             # upd_surf = self.controlPointsOpt(self.Bspl, self.X, self.y, np.diag(np.ones((len(self.X),))))  # change to self.Psi!
-            
+        
+            # Optimization in order to find the CP values
             upd_surf = self.controlPointsOpt(self.Bspl, self.X, self.y, np.array(self.Psi))
-            
             self.beta = []
             for pt in upd_surf.ctrlpts:  # Bspline
                 self.beta.append(pt[-1])
-            
+        
+            # self.plot_trend()
+            # # Exact same as for polynomials (they are indeed polynomials!)
+            # self.beta = np.linalg.solve(np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.F))), (np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.y)))))
+            # 
             # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
             self.SigmaSqr = ((self.y - self.F.dot(self.beta)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.F.dot(self.beta)))))) / self.n
         else:
@@ -346,7 +377,7 @@ class matrixops():
     def regression_predicterr_normalized(self, x):
         for i in range(self.n):
             try:
-                self.psi[i]=np.exp(-np.sum(self.theta*np.power((np.abs(self.X[i]-x)), self.pl)))
+                self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
             except Exception as e:
                 print(Exception,e)
         try:

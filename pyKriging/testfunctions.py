@@ -61,30 +61,37 @@ class testfunctions():
 
     def branin(self, X):
         
-        try:
-            X.shape[1]
-        except:
-            X = np.array([X])
-
-        if X.shape[1] != 2:
-            raise Exception
-        x = X[:, 0]
-        y = X[:, 1]
+        # try:
+        #     X.shape[1]
+        # except:
+        #     X = np.array([X])
         
-        # x = X[:, 1] # Inversed branin
-        # y = X[:, 0]
+        # if X.shape[1] != 2:
+             # raise Exception
+            
+        if np.isscalar(X[0]):
+            X = [X]
         
-        # RESCALES THE DATA HERE?
-        X1 = 15*x-5
-        X2 = 15*y
-        
-        a = 1
-        b = 5.1/(4*np.pi**2)
-        c = 5/np.pi
-        d = 6
-        e = 10
-        ff = 1/(8*np.pi)
-        return (a*( X2 - b*X1**2 + c*X1 - d )**2 + e*(1-ff)*np.cos(X1) + e)+5*x
+        fun_val = []
+        for point in X:
+            x = point[0]
+            y = point[1]
+            # x = X[:, 0]
+            # y = X[:, 1]
+            
+            # RESCALES THE DATA HERE?
+            X1 = 15 * x - 5
+            X2 = 15 * y
+            
+            a = 1
+            b = 5.1 / (4 * np.pi**2)
+            c = 5 / np.pi
+            d = 6
+            e = 10
+            ff = 1 / (8 * np.pi)
+            fun_val.append((a * (X2 - b * X1**2 + c * X1 - d)**2 + e * (1 - ff) * np.cos(X1) + e) + 5 * x)
+            
+        return np.array(fun_val)
 
     def branin_noise(self, X):
         try:
@@ -228,12 +235,24 @@ class testfunctions():
         :param x:
         :return:
         '''
-        y = [0.0] * 1
-        function_sum = 0
-        for i in np.arange(0, len(x)-1):
-            function_sum += (1 - x[i]) ** 2 + 100 * ((x[i + 1] - x[i] ** 2) ** 2)
-        y[0] = function_sum
-        return y
+        a = 1
+        b = 100
+        try:
+            if isinstance(x[0], np.ndarray):  # several points
+                f_vec = np.ones((np.size(x[:, 0]),)) * np.nan
+                
+                for iter, pair in enumerate(x):
+                    f_vec[iter] = (a - pair[0])**2 + b * (pair[1] - pair[0]**2)**2
+            elif np.isscalar(x[0]):
+                f_vec = (a - x[0])**2 + b * (x[1] - x[0]**2)**2
+            
+            else:
+                raise ValueError
+                
+        except:
+            pdb.set_trace()
+        
+        return f_vec
 
 
 

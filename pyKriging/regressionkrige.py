@@ -121,7 +121,7 @@ class regression_kriging(matrixops):
 
         self.ynormRange.append(min(self.y))
         self.ynormRange.append(max(self.y))
-
+        
         for i in range(self.n):
             self.y[i] = self.normy(self.y[i])
 
@@ -388,10 +388,10 @@ class regression_kriging(matrixops):
             ea.terminator = self.no_improvement_termination
             final_pop = ea.evolve(generator=self.generate_population,
                                   evaluator=self.fittingObjective,
-                                  pop_size=100, # 50
+                                  pop_size=50, # 50
                                   maximize=False,
                                   bounder=ec.Bounder(lowerBound, upperBound),
-                                  max_evaluations=2000,
+                                  max_evaluations=1000, # 2000
                                   num_elites=10, # 10
                                   mutation_rate=.05)
 
@@ -434,7 +434,7 @@ class regression_kriging(matrixops):
         '''
         fitness = []
         for entry in candidates:
-            f=10000
+            f = 10000
             for i in range(self.k):
                 self.theta[i] = entry[i]
             for i in range(self.k):
@@ -449,6 +449,7 @@ class regression_kriging(matrixops):
                 # print Exception, e
                 f = 10000
             fitness.append(f)
+            
         return fitness
 
     def fittingObjective_local(self,entry):
@@ -473,13 +474,13 @@ class regression_kriging(matrixops):
         return f
         
     def plot_trend(self):
-        x = y = np.arange(0, 1, 0.05)
-        X, Y = np.meshgrid(x, y)
+        pdb.set_trace()
+        X, Y = np.meshgrid(np.arange(0, 1, 0.05), np.arange(0, 1, 0.05))
         zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
         
         # real function
-        z_real = np.array([self.testfunction([x, y]) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        z_real = np.array([self.testfunction(np.array([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z_r = z_real.reshape(X.shape)
         
         
@@ -498,13 +499,13 @@ class regression_kriging(matrixops):
         plt.show()
         
     def plot_rad(self):
-        x = y = np.arange(0, 1, 0.005)
+        x = y = np.arange(0, 1, 0.05)
         X, Y = np.meshgrid(x, y)
         zs = np.array([self.predict([x, y], norm=False) - self.inversenormy(self.trend_fun_val([x, y])) for x,y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
         
         # real function
-        z_real = np.array([self.testfunction([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
+        z_real = np.array([self.testfunction(np.array([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z_r = z_real.reshape(X.shape)
         
         
@@ -624,7 +625,7 @@ class regression_kriging(matrixops):
             ax = fig.add_subplot(212, projection='3d')
             # fig = plt.gcf()
             #ax = fig.gca(projection='3d')
-            Approx = ax.plot_surface(X, Y, Z, rstride=3, cstride=3, alpha=0.3, cmap='jet')
+            Approx = ax.plot_surface(X, Y, Z, rstride=3, cstride=3, alpha=0.5, cmap='jet')
             
             if self.testfunction:
                 Real = ax.plot_wireframe(X, Y, ZT, rstride=3, cstride=3)
@@ -736,7 +737,7 @@ class regression_kriging(matrixops):
         else:
             plt.savefig('pyKrigingResult.png')
 
-    def RRMSE_R2(self, p2s=2000, points=None):
+    def RRMSE_R2(self, bounds, p2s=2000, points=None):
         '''
         This function calculates the mean relative MSE metric of the model by evaluating MSE at a number of points and the Coefficient of determiniation.
         :param p2s: Points to Sample, the number of points to sample the mean squared error at. Ignored if the points argument is specified
@@ -745,10 +746,16 @@ class regression_kriging(matrixops):
         '''
         if points is None:
             
-            #points = self.sp.rlh(p2s)
-            points = self.sp.circle(p2s)
+            points = self.sp.rlh(p2s)
+            
+            
+            # points = self.sp.circle(p2s)
             inside = 0
             den = 0
+            
+            minx, maxx, miny, maxy = bounds
+            points[:, 0] = minx + (maxx - minx) * points[:, 0]
+            points[:, 1] = miny + (maxy - miny) * points[:, 1]
             
             SS_tot = 0
             SS_res = 0
@@ -758,7 +765,7 @@ class regression_kriging(matrixops):
             y_vec = np.zeros((n,))
             
             for x, y, i in zip(np.ravel(points[:, 0]), np.ravel(points[:, 1]), np.arange(n)):
-                f_vec[i] = self.predict([x, y], norm=False)  # Norm false since self.X already in [0,1]
+                f_vec[i] = self.predict([x, y], norm=True)  # Norm false since self.X already in [0,1]
                 y_vec[i] = self.testfunction([x, y])
                 
             y_bar = np.sum(y_vec) / n
