@@ -30,10 +30,10 @@ class Test_RSM(unittest.TestCase):
         # self.X = sp.MC(num_p)
         self.X = sp.optimallhc(num_p)
         minx, maxx, miny, maxy = [-2, 2, -2, 2]
-        # 
         self.X[:, 0] = minx + (maxx - minx) * self.X[:, 0]
         self.X[:, 1] = miny + (maxy - miny) * self.X[:, 1]
         # self.testfun = pyKriging.testfunctions().branin
+        
         self.testfun = pyKriging.testfunctions().rosenbrock
         self.y = self.testfun(self.X)
         

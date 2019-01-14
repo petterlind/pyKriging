@@ -43,23 +43,6 @@ class matrixops():
         norm = np.dot(Qdim - fun_val[:, dim], np.dot(R, Qdim - fun_val[:, dim]))  # generalized least square
         return norm
         
-    # def compute_CP_anal(self, Bspl, x, y, R, dim):
-    #     '''
-    #     Computes the analytical solution of the weighted least square problem used in kriging.
-    #     '''
-    #     # Controlpoint vec
-    #     p = []
-    #     for comp in Bspl.ctrlpts:
-    #         for in_comp in comp:
-    #             p.append(in_comp)
-    # 
-    #     pdb.set_trace()
-    #     Qdim = np.matmul(self.F, p[dim::3])
-    #     fun_val = np.stack((x[:, 0], x[:, 1], y), axis=-1)
-    # 
-    #     norm = np.dot(Qdim - fun_val[:, dim], np.dot(R, Qdim - fun_val[:, dim]))  # generalized least square
-    #     return norm
-        
     def update_bspl(self, Bspl, inp, dim):
         
         CP = []
@@ -171,17 +154,24 @@ class matrixops():
             # Bspl.knotvector_v = geom_util.generate_knot_vector(Bspl.degree_v, ctrlpts_size_v)
             
             # open
-            # Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_size_u + 1).tolist())
-            # Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_size_v + 1).tolist())
+            Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_size_u + 1).tolist())
+            Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_size_v + 1).tolist())
             ################
-            # Special 2
-            c_kn = geom_util.generate_knot_vector(Bspl.degree_u, ctrlpts_size_u)
-            c_kn[-3] = 0.6
-            c_kn[2] = 0.4
-            # 
-            Bspl.knotvector_u = c_kn
-            Bspl.knotvector_v = c_kn
-            # 
+            numb = Bspl.degree_u + ctrlpts_size_u + 1
+            vec = np.linspace(0.1, 1, num=np.floor(numb / 2)).tolist()
+            k = 2
+            vec = [elem ** k for elem in vec]
+            # vec = np.exp(vec)
+            # Normalize
+            vec = vec / (2 * np.max(vec))
+            
+            if numb % 2 == 0:
+                # Do not append mid number if uneven number of points!
+                lst = np.sort(np.append(vec, -vec)) + 0.5
+            else:
+                lst = np.sort(np.append(np.append(vec, 0), -vec)) + 0.5
+            Bspl.knotvector_u = tuple(lst)
+            Bspl.knotvector_v = tuple(lst)
             ################################################################
             self.Bspl = Bspl
             
@@ -335,12 +325,11 @@ class matrixops():
             self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
             
         try:
-            
             z = self.y - np.dot(self.F, self.beta)
-                
         except:
             print('EXCEPT!!! (constant mean value)')
             z = self.y - self.one.dot(self.mu)
+            
         a = np.linalg.solve(self.U.T, z)
         b = np.linalg.solve(self.U, a)
         c = self.psi.T.dot(b)

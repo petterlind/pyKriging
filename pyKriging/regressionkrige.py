@@ -78,21 +78,42 @@ class regression_kriging(matrixops):
         :param X: An array of points (self.k long) in physical world units
         :return X: An array normed to our model range of [0,1] for each dimension
         '''
-        X = copy.deepcopy(X)
-        for i in range(self.k):
-            X[i] = (X[i] - self.normRange[i][0]) / float(self.normRange[i][1] - self.normRange[i][0])
-        return X
+        scalar = False
+        if np.isscalar(X[0]):
+            X = [X]
+            scalar = True
+        
+        X_norm = np.ones(np.shape(X)) * np.nan
+        for i, row in enumerate(X):  # for every row
+            for j, elem in enumerate(row):  # for every element in every row
+                X_norm[i, j] = (elem - self.normRange[j][0]) / float(self.normRange[j][1] - self.normRange[j][0])
+                
+        if scalar:  # unpack
+            [X_norm] = X_norm
+            return X_norm
+        else:
+            return X_norm
 
     def inversenormX(self, X):
         '''
-
         :param X: An array of points (self.k long) in normalized model units
         :return X : An array of real world units
         '''
-        X = copy.deepcopy(X)
-        for i in range(self.k):
-            X[i] = (X[i] * float(self.normRange[i][1] - self.normRange[i][0] )) + self.normRange[i][0]
-        return X
+        scalar = False
+        if np.isscalar(X[0]):
+            X = [X]
+            scalar = True
+        # X = copy.deepcopy(X)
+        X_inv = np.ones(np.shape(X)) * np.nan
+        for i, row in enumerate(X):  # for every row
+            for j, elem in enumerate(row):  # for every element in every row
+                X_inv[i, j] = (elem * float(self.normRange[j][1] - self.normRange[j][0])) + self.normRange[j][0]
+        
+        if scalar:  # unpack
+            [X_inv] = X_inv
+            return X_inv
+        else:
+            return X_inv
 
     def normy(self, y):
         '''
@@ -113,12 +134,13 @@ class regression_kriging(matrixops):
         This function is called when the initial data in the model is set.
         We find the max and min of each dimension and norm that axis to a range of [0,1]
         '''
+        # lower and upper bound of data.
         for i in range(self.k):
             self.normRange.append([min(self.X[:, i]), max(self.X[:, i])])
-
-        for i in range(self.n):
-            self.X[i] = self.normX(self.X[i])
-
+        
+        # Normalize data
+        self.X = self.normX(self.X)
+        
         self.ynormRange.append(min(self.y))
         self.ynormRange.append(max(self.y))
         
@@ -181,6 +203,7 @@ class regression_kriging(matrixops):
         X = copy.deepcopy(X)
         if norm:
             X = self.normX(X)
+            
         return self.inversenormy(self.predict_normalized(X))
 
     def predict_var(self, X, norm=True):
@@ -474,7 +497,6 @@ class regression_kriging(matrixops):
         return f
         
     def plot_trend(self):
-        pdb.set_trace()
         X, Y = np.meshgrid(np.arange(0, 1, 0.05), np.arange(0, 1, 0.05))
         zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
@@ -580,7 +602,6 @@ class regression_kriging(matrixops):
             X, Y = np.meshgrid(x, y)
 
             # Predict based on the optimized results
-
             zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
             Z = zs.reshape(X.shape)
             # Z = (Z*(self.ynormRange[1]-self.ynormRange[0]))+self.ynormRange[0]
@@ -737,7 +758,7 @@ class regression_kriging(matrixops):
         else:
             plt.savefig('pyKrigingResult.png')
 
-    def RRMSE_R2(self, bounds, p2s=2000, points=None):
+    def RRMSE_R2(self, p2s=2000, points=None):
         '''
         This function calculates the mean relative MSE metric of the model by evaluating MSE at a number of points and the Coefficient of determiniation.
         :param p2s: Points to Sample, the number of points to sample the mean squared error at. Ignored if the points argument is specified
@@ -747,15 +768,10 @@ class regression_kriging(matrixops):
         if points is None:
             
             points = self.sp.rlh(p2s)
-            
-            
             # points = self.sp.circle(p2s)
+            
             inside = 0
             den = 0
-            
-            minx, maxx, miny, maxy = bounds
-            points[:, 0] = minx + (maxx - minx) * points[:, 0]
-            points[:, 1] = miny + (maxy - miny) * points[:, 1]
             
             SS_tot = 0
             SS_res = 0
@@ -764,8 +780,9 @@ class regression_kriging(matrixops):
             f_vec = np.zeros((n,))
             y_vec = np.zeros((n,))
             
+            # NYA PUNKTER! Måste ligga inom marginalerna på modellen!
             for x, y, i in zip(np.ravel(points[:, 0]), np.ravel(points[:, 1]), np.arange(n)):
-                f_vec[i] = self.predict([x, y], norm=True)  # Norm false since self.X already in [0,1]
+                f_vec[i] = self.predict([x, y], norm=False)  # Norm False, already normalized
                 y_vec[i] = self.testfunction([x, y])
                 
             y_bar = np.sum(y_vec) / n
@@ -777,7 +794,11 @@ class regression_kriging(matrixops):
                 SS_tot += (y_i - y_bar)**2
                 SS_res += (y_i - f_i)**2
             RRMSE = np.sqrt(inside / n) / den
+            
             R_sq = 1 - SS_res / SS_tot
+            
+            # if R_sq < 0:
+            #     pdb.set_trace()
             
             return R_sq, RRMSE * 100  # In percentage!
             
