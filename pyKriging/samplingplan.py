@@ -107,7 +107,8 @@ class samplingplan():
                 #     print('SP not found on disk, generating it now.')
 
             #list of qs to optimise Phi_q for
-            q = [1,2,5,10,20,50,100]
+            # q = [1,2,5,10,20,50,100]
+            q = [2,5,10]
 
             #Set the distance norm to rectangular for a faster search. This can be
             #changed to p=2 if the Euclidean norm is required.
@@ -119,12 +120,12 @@ class samplingplan():
             X3D = np.zeros((n,self.k,len(q)))
             #for each q optimize Phi_q
             for i in range(len(q)):
-                print(('Now_optimizing_for_q = %d \n' %q[i]))
+                # print(('Now_optimizing_for_q = %d \n' %q[i]))
                 X3D[:,:,i] = self.mmlhs(XStart, population, iterations, q[i])
 
             #sort according to the Morris-Mitchell criterion
             Index = self.mmsort(X3D,p)
-            print(('Best_lh_found_using_q = %d \n' %q[Index[1]]))
+            # print(('Best_lh_found_using_q = %d \n' %q[Index[1]]))
 
             #and the Latin hypercube with the best space-filling properties is
 

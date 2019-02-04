@@ -103,7 +103,7 @@ class regression_kriging(matrixops):
         if np.isscalar(X[0]):
             X = [X]
             scalar = True
-        # X = copy.deepcopy(X)
+            
         X_inv = np.ones(np.shape(X)) * np.nan
         for i, row in enumerate(X):  # for every row
             for j, elem in enumerate(row):  # for every element in every row
@@ -758,52 +758,60 @@ class regression_kriging(matrixops):
         else:
             plt.savefig('pyKrigingResult.png')
 
-    def RRMSE_R2(self, p2s=2000, points=None):
+    def RRMSE_R2(self, p2s=50**2):
         '''
         This function calculates the mean relative MSE metric of the model by evaluating MSE at a number of points and the Coefficient of determiniation.
         :param p2s: Points to Sample, the number of points to sample the mean squared error at. Ignored if the points argument is specified
         :param points: an array of points to sample the model at
         :return: the mean value of MSE and the standard deviation of the MSE points
         '''
-        if points is None:
+        # X = self.sp.rlh(p2s)
+        # points = self.sp.circle(p2s)
+        # n = len(np.ravel(X[:, 0]))
+        
+        n = p2s
+        inside = 0
+        den = 0
+        SS_tot = 0
+        SS_res = 0
+        f_vec = np.zeros((n,))
+        y_vec = np.zeros((n,))
+        ######
+        
+        x = np.linspace(self.normRange[0][0], self.normRange[0][1], num=np.sqrt(p2s))
+        y = np.linspace(self.normRange[1][0], self.normRange[1][1], num=np.sqrt(p2s))
+        X, Y = np.meshgrid(x, y)
+        ####
+        f_vec = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
+        y_vec = self.testfunction(np.array(list(zip(np.ravel(X), np.ravel(Y)))))
+        
+        
+        # points = self.inversenormX(X)  # Scales the data if not in [0,1]!
+        # pdb.set_trace()
+        # for x, y, i in zip(np.ravel(points[:, 0]), np.ravel(points[:, 1]), np.arange(n)):
+            # f_vec[i] = self.predict([x, y], norm=False)  # Norm False, already normalized
+            # y_vec[i] = self.testfunction([x, y])
+        
+        y_bar = np.sum(y_vec) / n
+        
+        # https://en.wikipedia.org/wiki/Root-mean-square_deviation
+        for f_i, y_i in zip(f_vec, y_vec):
+            inside += (f_i - y_i)**2
+            den += y_i
+            SS_tot += (y_i - y_bar)**2
             
-            points = self.sp.rlh(p2s)
-            # points = self.sp.circle(p2s)
+        # https://www.sciencedirect.com/science/article/pii/S1364032115013258?via%3Dihub
+        # https://stats.stackexchange.com/questions/260615/what-is-the-difference-between-rrmse-and-rmsre?rq=1
+        # https://en.wikipedia.org/wiki/Coefficient_of_determination
+        RMSD = np.sqrt(inside / n)
+        # RRMSE = np.sqrt(inside / n) / den * 100
+        R_sq = 1 - inside / SS_tot
+        
+        if RMSD < 0: #  or RMSD > 1: #  or R_sq > 1:  # R_sq can be less than zero! - fits data worse than horizontal line.
+            pdb.set_trace()
+            raise ValueError('Something of with error estimate!')
             
-            inside = 0
-            den = 0
-            
-            SS_tot = 0
-            SS_res = 0
-            n = len(np.ravel(points[:, 0]))
-            
-            f_vec = np.zeros((n,))
-            y_vec = np.zeros((n,))
-            
-            # NYA PUNKTER! Måste ligga inom marginalerna på modellen!
-            for x, y, i in zip(np.ravel(points[:, 0]), np.ravel(points[:, 1]), np.arange(n)):
-                f_vec[i] = self.predict([x, y], norm=False)  # Norm False, already normalized
-                y_vec[i] = self.testfunction([x, y])
-                
-            y_bar = np.sum(y_vec) / n
-            
-            for f_i, y_i in zip(f_vec, y_vec):
-                inside += (f_i - y_i)**2
-                den += f_i
-                
-                SS_tot += (y_i - y_bar)**2
-                SS_res += (y_i - f_i)**2
-            RRMSE = np.sqrt(inside / n) / den
-            
-            R_sq = 1 - SS_res / SS_tot
-            
-            # if R_sq < 0:
-            #     pdb.set_trace()
-            
-            return R_sq, RRMSE * 100  # In percentage!
-            
-        else:
-            raise NotImplementedError
+        return R_sq, RMSD  # In percentage!
             
     def snapshot(self):
         '''
@@ -833,7 +841,7 @@ class regression_kriging(matrixops):
         self.history[ 'lastPredictedPoints' ] = copy.deepcopy(currentPredictions)
 
     def rsquared(self, actual, observed):
-        return np.corrcoef(observed, actual)[0,1] ** 2
+        return np.corrcoef(observed, actual)[0, 1] ** 2
 
     def adjrsquares(self, rsquared, obs):
         return 1-(1-rsquared)*((obs-1)/(obs-self.k))   # adjusted R-square

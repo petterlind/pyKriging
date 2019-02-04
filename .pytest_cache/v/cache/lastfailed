@@ -1,1 +1,6 @@
-{}
+{
+  "pyKriging/Natural_cubic_test.py": true,
+  "pyKriging/test_cubic.py": true,
+  "pyKriging/test_cubic_Implemented_as_in_book.py": true,
+  "pyKriging/test_cubic_surface.py": true
+}

@@ -11,6 +11,8 @@ from geomdl.visualization import VisMPL as vis
 from geomdl import BSpline
 from geomdl import utilities as geom_util
 from matplotlib import cm
+import pyKriging.natural_cubic as nc
+# from pyKriging.regressionkrige import regression_kriging
 
 
 class matrixops():
@@ -124,7 +126,21 @@ class matrixops():
             
         elif self.reg == 'Third':
             raise NotImplementedError
-        
+            
+        elif self.reg == 'Cubic':
+            ''' Natural cubic spline, implementation from ch 5.3 in The elements of statisitical modeling
+            '''
+            knots = np.linspace(0, 1, num=3)
+            f = nc.basis_2d(x, knots)
+            return f
+            
+        elif self.reg == 'Cubic2':
+            ''' Natural cubic spline, implementation from ch 5.3 in The elements of statisitical modeling
+            '''
+            knots = np.linspace(0, 1, num=4)
+            f = nc.basis_2d(x, knots)
+            return f
+            
         elif self.reg == 'Bspline':
             
             Bspl = BSpline.Surface()
@@ -226,12 +242,13 @@ class matrixops():
                 self.distance[i, j] = np.abs((self.X[i] - self.X[j]))  # Every position in this matrix is an array of dimension k!
         
         F = []
-        if self.reg != 'Bspline':
+        if self.reg == 'First' or self.reg == 'Second' or self.reg == 'Third':
             for i in range(0, self.n):
                 F.append(self.mean_f(self.X[i], None).tolist())
                 
             self.F = np.array(F)
-        elif self.reg == 'Bspline':
+            
+        elif self.reg == 'Bspline' or self.reg == 'Cubic' or self.reg == 'Cubic2':
             # FUTURE, set bspline variables before this function call
             self.F = self.mean_f(self.X, None)
         else:
@@ -242,7 +259,7 @@ class matrixops():
         self.Psi = np.zeros((self.n, self.n), dtype=np.float)
         self.one = np.ones(self.n)
         self.psi = np.zeros((self.n, 1))
-        newPsi = np.exp(-np.sum(self.theta*np.power(self.distance, self.pl), axis=2))
+        newPsi = np.exp(-np.sum(self.theta *np.power(self.distance, self.pl), axis=2))
         self.Psi = np.triu(newPsi, 1)
         self.Psi = self.Psi + self.Psi.T + np.mat(eye(self.n)) + np.multiply(np.mat(eye(self.n)), np.spacing(1))
         self.U = np.linalg.cholesky(self.Psi)
@@ -278,8 +295,9 @@ class matrixops():
 
     def regneglikelihood(self):
         self.LnDetPsi = 2 * np.sum(np.log(np.abs(np.diag(self.U))))
+        
         # Weighted least square
-        if self.reg == 'First' or self.reg == 'Second' or self.reg == 'Third': # or self.reg == 'Bspline':
+        if self.reg == 'First' or self.reg == 'Second' or self.reg == 'Third' or self.reg == 'Cubic' or self.reg == 'Cubic2':
                 self.beta = np.linalg.solve(np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.F))), (np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.y)))))
                 
                 # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
@@ -313,7 +331,7 @@ class matrixops():
         Made for plotting the trend function value. 
         Rewrite it and use it in predict_normalized for clearear code interpretation!
         '''
-        if self.reg != 'Bspline':
+        if self.reg != 'Bspline' or self.reg == 'Cubic' or self.reg == 'Cubic2':
             f = self.mean_f(x, None).dot(self.beta)
             
         elif self.reg == 'Bspline':

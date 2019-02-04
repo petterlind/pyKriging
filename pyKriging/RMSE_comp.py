@@ -6,120 +6,168 @@ from geomdl import exchange
 from geomdl.visualization import VisMPL as vis
 import pyKriging
 from pyKriging import matrixops
-from pyKriging import samplingplan
+from pyKriging import samplingplan as sp
 from geomdl import utilities
 from pyKriging.regressionkrige import regression_kriging
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import pickle
+import seaborn as sns
+import pandas as pd
 
-class RMSE():
-    def __init__(self, *args, **kwargs):
 
-        num_p = 25
-        # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
-        sp = samplingplan(2)
-        # self.X = sp.rlh(num_p)
-        self.X = sp.optimallhc(num_p)
-        self.bounds = [-2, 2, -2, 2]
-        minx, maxx, miny, maxy = self.bounds
-        # self.X = np.append(self.X, [[0, 0], [1, 1], [0, 1], [1, 0]], axis=0)
-        self.X[:, 0] = minx + (maxx - minx) * self.X[:, 0]
-        self.X[:, 1] = miny + (maxy - miny) * self.X[:, 1]
-        
-        self.RRMSE = {'First': None, 'Second': None, 'Third': None, 'Spline': None}
-        self.R_sq = {'First': None, 'Second': None, 'Third': None, 'Spline': None}
-        
-        # self.testfun = pyKriging.testfunctions().branin
-        self.testfun = pyKriging.testfunctions().rosenbrock
-        self.y = self.testfun(self.X)
-        
-        # [3e-5 5e-4 2e-3] num_p = 10**2 rlh # non-periodic knot span
-        
-        # self.X = sp.grid(num_p)
-        # [1e-3 5e-4 4e-3] num_p = 10**2 rlh
+def plot_RMSE_sea(All_data, models, test_name, nr_exp):
+    ''' boxplot the data from RMSE-run'''
+    
+    # MYCKET MYCKET MER INFO HÄR FÖR ATT BYGGA OM DICTEN!
+    # https://stackoverflow.com/questions/39344167/grouped-boxplot-with-seaborn
+    
+    # Create a new dict with correct structure for seaborn plots
+    
+    data = {}
+    data['model'] = []
+    data['test'] = []
+    data['num'] = []
+    data['RMSE'] = []
+    data['R_sq'] = []
+    for test in test_name:
+        for model in models:
+            for num_p in range(16, 40, 2):
+                for iter in range(nr_exp):
+                    data['model'].append(model)
+                    data['test'].append(test)
+                    data['num'].append(num_p)
+                    data['R_sq'].append(All_data[test][model][num_p]['R_sq'][iter])
+                    data['RMSE'].append(All_data[test][model][num_p]['average'][iter])
+    
+    df = pd.DataFrame.from_dict(data)
+    
+    pdb.set_trace()
+    
+    sns.boxplot(x="num", y="RMSE", hue="model", data=df, palette="PRGn").set_title("RMSE error")
+    sns.boxplot(x="num", y="R_sq", hue="model", data=df, palette="PRGn").set_title("R_sq")
+    # sns.set(style="whitegrid")
+    
+    
 
-        # self.X = sp.MC(num_p)
-        
-    def reg_krig_first(self):
-        # Next, we define the problem we would like to solve
-        krig_first = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='First')
-        krig_first.train()
+def plot_RRMSE(All_data):
     
-        # And plot the results
-        # krig_first.plot()
-        # Or the trend function
-        # krig_first.plot_trend()
-        self.R_sq['First'], self.RRMSE['First'] = krig_first.RRMSE_R2()
-
-    def reg_krig_second(self):
-        # Next, we define the problem we would like to solve
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k']
     
-        krig_second = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='Second')
-        krig_second.train()
-    
-        # And plot the results
-        # krig_second.plot()
-        # pdb.set_trace()
-        # Or the trend function
-        # krig_second.plot_trend()
-        
-        self.R_sq['Second'], self.RRMSE['Second'] = krig_second.RRMSE_R2()
-    
-    def reg_krig_spline(self):
-        # Next, we define the problem we would like to solve
-    
-        krig_spline = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='Bspline')
-        krig_spline.train()
-        
-        self.R_sq['Spline'], self.RRMSE['Spline'] = krig_spline.RRMSE_R2()
-        # And plot the results
-        # krig_spline.plot()
-        # krig_spline.plot_trend()
-        
-        ## PLOT TREND!
-        # # Set evaluation delta
-        # krig_spline.Bspl.delta = 0.025
-        # 
-        # # Evaluate surface points
-        # krig_spline.Bspl.evaluate()
-        # 
-        # # Import and use Matplotlib's colormaps
-        # 
-        # # Plot the control point grid and the evaluated surface
-        # vis_comp = vis.VisSurfTriangle()
-        # krig_spline.Bspl.vis = vis_comp
-        # krig_spline.Bspl.render(colormap=cm.coolwarm)
-        ## END PLOT TREND
-        
-avg = {'First': 0, 'Second': 0, 'Third': 0, 'Spline': 0}
-R_avg = {'First': 0, 'Second': 0, 'Third': 0, 'Spline': 0}
-numiter = 20
-
-for i in range(numiter):
-    run = RMSE()
-    run.reg_krig_first()
-    run.reg_krig_second()
-    run.reg_krig_spline()
-    print(run.RRMSE)
-    
-    for key in run.RRMSE:
-        if run.RRMSE[key] is not None:
-            avg[key] += run.RRMSE[key]
-            R_avg[key] += run.R_sq[key]
+    for iter1, test in enumerate(All_data):
+        fig = plt.figure(iter1)
+        ax = fig.gca()
+        for iter2, model in enumerate(All_data[test]):
             
-for key in avg:
-    if avg[key] is not 0:
-        avg[key] = avg[key] / float(numiter)
-        R_avg[key] = R_avg[key] / float(numiter)
-    # elif avg[key] is 0:
-        # del avg[key]
-print(avg)
-print(R_avg)
-# pdb.set_trace()
+            # x and y data
+            x = []
+            y = []
+            
+            for num in All_data[test][model]:
+                # Maybe check if not empty first?
+                x.append(num)
+                y.append(All_data[test][model][num]['average'])
+    
+            # Plot the surface
+            ax.plot(x, y, colors[iter2] + '-o', label=model)
+            ax.legend()
+            ax.grid(True)
+        
+        ax.set_title(test)
+        ax.set_xlabel('Experiments')
+        ax.set_ylabel('RRMSE')
+    plt.show()
+    
+    
+def save_obj(obj, name):
+    with open(r'C:\Users\pettlind\Documents\GitHub\pyKriging\pyKriging\obj/' + name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
-######
+
+def load_obj(name):
+    with open(r'C:\Users\pettlind\Documents\GitHub\pyKriging\pyKriging\obj/' + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
+        
+        
+def comp_data(numiter, models, test_name, save=True):
+    testfuns = {'branin': pyKriging.testfunctions().branin, 'rosenbrock': pyKriging.testfunctions().rosenbrock}
+
+    # Create the data structure
+    All_data = {}
+    for test in test_name:
+        All_data[test] = {}
+        for model in models:
+            All_data[test][model] = {}
+            for num_p in range(16, 40, 2):
+                All_data[test][model][num_p] = {}
+                
+    try:
+        # For various number of random experiments,
+        for num_p in range(16, 40, 2):
+            for test in test_name:  # for all benchmarks
+            
+                # Create empty lists
+                avg = {'First': [], 'Second': [], 'Third': [], 'Spline': [], 'Cubic': [], 'Cubic2': []}
+                R_avg = {'First': [], 'Second': [], 'Third': [], 'Spline': [], 'Cubic': [], 'Cubic2': []}
+                
+                for i in range(numiter):  # for a certain number of runs
+                    
+                    RRMSE = {'First': None, 'Second': None, 'Third': None, 'Spline': None, 'Cubic': None, 'Cubic2': None}
+                    R_sq = {'First': None, 'Second': None, 'Third': None, 'Spline': None, 'Cubic': None, 'Cubic2': None}
+                    
+                    # X = sp.rlh(num_p)
+                    X = sp.samplingplan().optimallhc(num_p)
+                    
+                    # X = np.append(X, [[0, 0], [1, 1], [0, 1], [1, 0]], axis=0)
+                    
+                    if test == 'rosenbrock':  # Change boundaries
+                        bounds = [-2, 2, -2, 2]
+                        minx, maxx, miny, maxy = bounds
+                        X[:, 0] = minx + (maxx - minx) * X[:, 0]
+                        X[:, 1] = miny + (maxy - miny) * X[:, 1]
+                    y = testfuns[test](X)
+                    
+                    for model in models:
+                        krig_mod = regression_kriging(X, y, testfunction=testfuns[test], reg=model)
+                        krig_mod.train()
+                        
+                        # And plot the results
+                        # krig_mod.plot()
+                        # krig_mod.plot_trend()
+                        
+                        R_sq[model], RRMSE[model] = krig_mod.RRMSE_R2()
+                    
+                    # Save result from each run
+                    for key in RRMSE:
+                        if RRMSE[key] is not None:
+                            avg[key].append(RRMSE[key])
+                            R_avg[key].append(R_sq[key])
+                            
+                for key in avg:  # Save the result to the data structure
+                    if len(avg[key]) != 0:
+                        All_data[test][key][num_p]['average'] = avg[key]
+                        All_data[test][key][num_p]['R_sq'] = R_avg[key]
+            print(num_p)
+        if save:
+            save_obj(All_data, 'Data_RRMSE')
+        
+    except:
+        pdb.set_trace()
+        
+
+# models = ['First', 'Second', 'Spline', 'Cubic', 'Cubic2']
+models = ['First', 'Second', 'Cubic', 'Cubic2']  # No spline
+test_name = ['rosenbrock', 'branin']
+# models = ['First']  # No spline
+# comp_data(15, models, test_name, save=True)
+All_data = load_obj('Data_RRMSE')
+plot_RMSE_sea(All_data, models, test_name, 15)
+pdb.set_trace()
+plot_RRMSE(All_data)
+
+    
 #####  25 + 4 corner points #####
 # spline, 3ord, open, 10 runs, rosenbrock 0.0803 MSE
 # Krig 2nd 10 runs, rosenbrock 0.0910 MSE

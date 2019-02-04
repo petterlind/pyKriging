@@ -1,0 +1,141 @@
+import unittest
+import numpy as np
+import pdb
+from geomdl import BSpline
+from geomdl import exchange
+from geomdl.visualization import VisMPL as vis
+import pyKriging
+from pyKriging import matrixops
+from pyKriging import samplingplan as sp
+from geomdl import utilities
+from pyKriging.regressionkrige import regression_kriging
+from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+
+class RMSE():
+    def __init__(self, *args, **kwargs):
+
+        num_p = 18
+        # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
+        # self.X = sp.rlh(num_p)
+        self.X = sp.samplingplan().optimallhc(num_p)
+        self.bounds = [-2, 2, -2, 2]
+        minx, maxx, miny, maxy = self.bounds
+        # self.X = np.append(self.X, [[0, 0], [1, 1], [0, 1], [1, 0]], axis=0)
+        self.X[:, 0] = minx + (maxx - minx) * self.X[:, 0]
+        self.X[:, 1] = miny + (maxy - miny) * self.X[:, 1]
+        
+        self.RRMSE = {'First': None, 'Second': None, 'Third': None, 'Spline': None, 'Cubic': None}
+        self.R_sq = {'First': None, 'Second': None, 'Third': None, 'Spline': None, 'Cubic': None}
+        
+        self.testfun = pyKriging.testfunctions().branin
+        # self.testfun = pyKriging.testfunctions().rosenbrock
+        self.y = self.testfun(self.X)
+        
+        # [3e-5 5e-4 2e-3] num_p = 10**2 rlh # non-periodic knot span
+        
+        # self.X = sp.grid(num_p)
+        # [1e-3 5e-4 4e-3] num_p = 10**2 rlh
+
+        # self.X = sp.MC(num_p)
+        
+    def reg_krig_first(self):
+        # Next, we define the problem we would like to solve
+        krig_first = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='First')
+        krig_first.train()
+    
+        # And plot the results
+        # krig_first.plot()
+        # Or the trend function
+        # krig_first.plot_trend()
+        self.R_sq['First'], self.RRMSE['First'] = krig_first.RRMSE_R2()
+
+    def reg_krig_second(self):
+        # Next, we define the problem we would like to solve
+    
+        krig_second = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='Second')
+        krig_second.train()
+    
+        # And plot the results
+        # krig_second.plot()
+        # pdb.set_trace()
+        # Or the trend function
+        # krig_second.plot_trend()
+        
+        self.R_sq['Second'], self.RRMSE['Second'] = krig_second.RRMSE_R2()
+    
+    def reg_krig_spline(self):
+        # Next, we define the problem we would like to solve
+    
+        krig_spline = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='Bspline')
+        krig_spline.train()
+        
+        self.R_sq['Spline'], self.RRMSE['Spline'] = krig_spline.RRMSE_R2()
+        # And plot the results
+        # krig_spline.plot()
+        # krig_spline.plot_trend()
+        
+    def reg_krig_cubic(self):
+        # Next, we define the problem we would like to solve
+        krig_cubic = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='Cubic')
+        krig_cubic.train()
+    
+        # And plot the results
+        # krig_cubic.plot()
+        # krig_cubic.plot_trend()
+        
+        self.R_sq['Cubic'], self.RRMSE['Cubic'] = krig_cubic.RRMSE_R2()
+        
+    def reg_krig_cubic2(self):
+        # Next, we define the problem we would like to solve
+        krig_cubic = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='Cubic2')
+        krig_cubic.train()
+    
+        # And plot the results
+        # krig_cubic.plot()
+        # krig_cubic.plot_trend()
+        
+        self.R_sq['Cubic2'], self.RRMSE['Cubic2'] = krig_cubic.RRMSE_R2()
+        
+avg = {'First': 0, 'Second': 0, 'Third': 0, 'Spline': 0, 'Cubic': 0, 'Cubic2': 0}
+R_avg = {'First': 0, 'Second': 0, 'Third': 0, 'Spline': 0, 'Cubic': 0, 'Cubic2': 0}
+
+numiter = 50
+for i in range(numiter):
+    
+    
+    
+    run = RMSE()
+    run.reg_krig_first()
+    run.reg_krig_second()
+    # run.reg_krig_spline()
+    run.reg_krig_cubic()
+    run.reg_krig_cubic2()
+    print(run.RRMSE)
+    
+    for key in run.RRMSE:
+        if run.RRMSE[key] is not None:
+            avg[key] += run.RRMSE[key]
+            R_avg[key] += run.R_sq[key]
+            
+for key in avg:
+    if avg[key] is not 0:
+        avg[key] = avg[key] / float(numiter)
+        R_avg[key] = R_avg[key] / float(numiter)
+    # elif avg[key] is 0:
+        # del avg[key]
+print(avg)
+print(R_avg)
+# pdb.set_trace()
+
+######
+#####  25 + 4 corner points #####
+# spline, 3ord, open, 10 runs, rosenbrock 0.0803 MSE
+# Krig 2nd 10 runs, rosenbrock 0.0910 MSE
+# KRIG 1nd, 10 runs, rosenbrock 0.21.
+
+#####  25 + 0 corner points #####
+# Second order knot vector distribution, spline, 3ord, 4 ctrlpts, 10 runs, rosenbrock 0.087 MSE
+# Krig 2nd 10 runs, rosenbrock 0.081 MSE

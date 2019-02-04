@@ -33,7 +33,7 @@ def basis_1d(x, k):
         n = 1
     else:
         n = len(x)
-    q = len(knots)
+    q = len(k)
     myX = np.zeros((n, q - 2))
     
     # Compute all basis function following elements of statistical learning
