@@ -6,7 +6,7 @@ import scipy
 import scipy.interpolate as interp
 import matplotlib.pyplot as plt
 import pdb
-import help_plots
+# import help_plots
 from geomdl.visualization import VisMPL as vis
 from geomdl import BSpline
 from geomdl import utilities as geom_util

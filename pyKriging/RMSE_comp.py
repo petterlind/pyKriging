@@ -12,6 +12,7 @@ from pyKriging.regressionkrige import regression_kriging
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import pickle
 import seaborn as sns
@@ -44,41 +45,50 @@ def plot_RMSE_sea(All_data, models, test_name, nr_exp):
     
     df = pd.DataFrame.from_dict(data)
     
-    pdb.set_trace()
+    # loop through rows and see which are rosenbrock, branin
+    pdb.set_trace()    
+    bool_branin = []
+    bool_rose = []
+    for fun in df.test:
+        if fun == 'branin':
+            bool_branin.append(True)
+            bool_rose.append(False)
+        elif fun == 'rosenbrock':
+            bool_branin.append(False)
+            bool_rose.append(True)
+
+    bool_cub = []
+    for mod in df.model:
+        if mod == 'Cubic2':
+            bool_cub.append(False)
+        else:
+            bool_cub.append(True)
+        
+    # df.rename(columns={'model':'Models',
+    #                       'exp':'Numbers of function evaluations',
+    #                       'RMSE':'Average RMSE'}, 
+    #              inplace=True)
+    df_branin = df[np.logical_and(bool_branin, bool_cub)]
+    df_rose = df[np.logical_and(bool_rose, bool_cub)]
     
-    sns.boxplot(x="num", y="RMSE", hue="model", data=df, palette="PRGn").set_title("RMSE error")
-    sns.boxplot(x="num", y="R_sq", hue="model", data=df, palette="PRGn").set_title("R_sq")
-    # sns.set(style="whitegrid")
-    
+    # Rename
     
 
-def plot_RRMSE(All_data):
+
+    plt.figure()
+    sns.boxplot(x="num", y="RMSE", hue="model", data=df_branin, palette="husl", showfliers=False).set_title("RMSE error, Branin")
+    sns.set(context='poster', style='ticks', palette='husl', font='Times New Roman', font_scale=1, color_codes=True, rc=None)
     
-    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k']
+    plt.figure()
+    sns.boxplot(x="num", y="R_sq", hue="model", data=df_branin, palette="PRGn", showfliers=False).set_title("R_sq, Branin")
+    # sns.set(style="whitegrid")
     
-    for iter1, test in enumerate(All_data):
-        fig = plt.figure(iter1)
-        ax = fig.gca()
-        for iter2, model in enumerate(All_data[test]):
-            
-            # x and y data
-            x = []
-            y = []
-            
-            for num in All_data[test][model]:
-                # Maybe check if not empty first?
-                x.append(num)
-                y.append(All_data[test][model][num]['average'])
+    plt.figure()
+    sns.boxplot(x="num", y="RMSE", hue="model", data=df_rose, palette="PRGn", showfliers=False).set_title("RMSE error, Rosenbrock")
     
-            # Plot the surface
-            ax.plot(x, y, colors[iter2] + '-o', label=model)
-            ax.legend()
-            ax.grid(True)
-        
-        ax.set_title(test)
-        ax.set_xlabel('Experiments')
-        ax.set_ylabel('RRMSE')
-    plt.show()
+    plt.figure()
+    sns.boxplot(x="num", y="R_sq", hue="model", data=df_rose, palette="PRGn", showfliers=False).set_title("R_sq, Rosenbrock")
+    sns.set(style="whitegrid")
     
     
 def save_obj(obj, name):
@@ -164,8 +174,9 @@ test_name = ['rosenbrock', 'branin']
 # comp_data(15, models, test_name, save=True)
 All_data = load_obj('Data_RRMSE')
 plot_RMSE_sea(All_data, models, test_name, 15)
+plt.show()
 pdb.set_trace()
-plot_RRMSE(All_data)
+# plot_RRMSE(All_data)
 
     
 #####  25 + 4 corner points #####
