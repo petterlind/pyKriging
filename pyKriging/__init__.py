@@ -4,4 +4,3 @@ from .samplingplan import *
 from .testfunctions import *
 from .utilities import *
 from .natural_cubic import *
-from .help_plots import *

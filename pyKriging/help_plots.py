@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pdb
-# from matrixops import matrixops
+from matrixops import matrixops
 from geomdl import utilities as geom_util
 from geomdl import helpers
 

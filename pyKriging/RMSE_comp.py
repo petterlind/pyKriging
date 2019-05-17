@@ -12,7 +12,6 @@ from pyKriging.regressionkrige import regression_kriging
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import matplotlib
 import pickle
@@ -48,6 +47,7 @@ def plot_RMSE_sea(All_data, models, test_name, nr_exp):
     
     df = pd.DataFrame.from_dict(data)
     
+<<<<<<< HEAD
     # loop through rows and see which are rosenbrock, branin
     bool_branin = []
     bool_rose = []
@@ -102,13 +102,43 @@ def plot_RMSE_sea(All_data, models, test_name, nr_exp):
     
     
     # sns.set(style="whitegrid")
+=======
+    pdb.set_trace()
     
-    plt.figure()
-    sns.boxplot(x="num", y="RMSE", hue="model", data=df_rose, palette="PRGn", showfliers=False).set_title("RMSE error, Rosenbrock")
+    sns.boxplot(x="num", y="RMSE", hue="model", data=df, palette="PRGn").set_title("RMSE error")
+    sns.boxplot(x="num", y="R_sq", hue="model", data=df, palette="PRGn").set_title("R_sq")
+    # sns.set(style="whitegrid")
     
-    plt.figure()
-    sns.boxplot(x="num", y="R_sq", hue="model", data=df_rose, palette="PRGn", showfliers=False).set_title("R_sq, Rosenbrock")
-    sns.set(style="whitegrid")
+    
+
+def plot_RRMSE(All_data):
+    
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k']
+>>>>>>> parent of 16ac6f6... BACKUP
+    
+    for iter1, test in enumerate(All_data):
+        fig = plt.figure(iter1)
+        ax = fig.gca()
+        for iter2, model in enumerate(All_data[test]):
+            
+            # x and y data
+            x = []
+            y = []
+            
+            for num in All_data[test][model]:
+                # Maybe check if not empty first?
+                x.append(num)
+                y.append(All_data[test][model][num]['average'])
+    
+            # Plot the surface
+            ax.plot(x, y, colors[iter2] + '-o', label=model)
+            ax.legend()
+            ax.grid(True)
+        
+        ax.set_title(test)
+        ax.set_xlabel('Experiments')
+        ax.set_ylabel('RRMSE')
+    plt.show()
     
     
 def save_obj(obj, name):
@@ -193,12 +223,18 @@ models = ['Cubic']
 # test_name = ['rosenbrock', 'branin']
 test_name = ['branin']
 # models = ['First']  # No spline
+<<<<<<< HEAD
 comp_data(20, models, test_name, save=True)
 # All_data = load_obj('Data_RRMSE')
 plot_RMSE_sea(All_data, models, test_name, 20)
 plt.show()
+=======
+# comp_data(15, models, test_name, save=True)
+All_data = load_obj('Data_RRMSE')
+plot_RMSE_sea(All_data, models, test_name, 15)
+>>>>>>> parent of 16ac6f6... BACKUP
 pdb.set_trace()
-# plot_RRMSE(All_data)
+plot_RRMSE(All_data)
 
     
 #####  25 + 4 corner points #####
