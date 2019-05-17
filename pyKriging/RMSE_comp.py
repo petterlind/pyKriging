@@ -48,6 +48,7 @@ def plot_RMSE_sea(All_data, models, test_name, nr_exp):
     df = pd.DataFrame.from_dict(data)
     
 <<<<<<< HEAD
+<<<<<<< HEAD
     # loop through rows and see which are rosenbrock, branin
     bool_branin = []
     bool_rose = []
@@ -130,6 +131,34 @@ def plot_RRMSE(All_data):
                 x.append(num)
                 y.append(All_data[test][model][num]['average'])
     
+=======
+    pdb.set_trace()
+    
+    sns.boxplot(x="num", y="RMSE", hue="model", data=df, palette="PRGn").set_title("RMSE error")
+    sns.boxplot(x="num", y="R_sq", hue="model", data=df, palette="PRGn").set_title("R_sq")
+    # sns.set(style="whitegrid")
+    
+    
+
+def plot_RRMSE(All_data):
+    
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k']
+    
+    for iter1, test in enumerate(All_data):
+        fig = plt.figure(iter1)
+        ax = fig.gca()
+        for iter2, model in enumerate(All_data[test]):
+            
+            # x and y data
+            x = []
+            y = []
+            
+            for num in All_data[test][model]:
+                # Maybe check if not empty first?
+                x.append(num)
+                y.append(All_data[test][model][num]['average'])
+    
+>>>>>>> parent of 16ac6f6... BACKUP
             # Plot the surface
             ax.plot(x, y, colors[iter2] + '-o', label=model)
             ax.legend()
@@ -232,6 +261,9 @@ plt.show()
 # comp_data(15, models, test_name, save=True)
 All_data = load_obj('Data_RRMSE')
 plot_RMSE_sea(All_data, models, test_name, 15)
+<<<<<<< HEAD
+>>>>>>> parent of 16ac6f6... BACKUP
+=======
 >>>>>>> parent of 16ac6f6... BACKUP
 pdb.set_trace()
 plot_RRMSE(All_data)
