@@ -49,6 +49,7 @@ def plot_RMSE_sea(All_data, models, test_name, nr_exp):
     
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     # loop through rows and see which are rosenbrock, branin
     bool_branin = []
     bool_rose = []
@@ -110,11 +111,20 @@ def plot_RMSE_sea(All_data, models, test_name, nr_exp):
     sns.boxplot(x="num", y="R_sq", hue="model", data=df, palette="PRGn").set_title("R_sq")
     # sns.set(style="whitegrid")
     
+=======
+    pdb.set_trace()
+    
+    sns.boxplot(x="num", y="RMSE", hue="model", data=df, palette="PRGn").set_title("RMSE error")
+    sns.boxplot(x="num", y="R_sq", hue="model", data=df, palette="PRGn").set_title("R_sq")
+    # sns.set(style="whitegrid")
+    
+>>>>>>> parent of 16ac6f6... BACKUP
     
 
 def plot_RRMSE(All_data):
     
     colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k']
+<<<<<<< HEAD
 >>>>>>> parent of 16ac6f6... BACKUP
     
     for iter1, test in enumerate(All_data):
@@ -143,6 +153,23 @@ def plot_RRMSE(All_data):
 def plot_RRMSE(All_data):
     
     colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm', 'y', 'k']
+    
+    for iter1, test in enumerate(All_data):
+        fig = plt.figure(iter1)
+        ax = fig.gca()
+        for iter2, model in enumerate(All_data[test]):
+            
+            # x and y data
+            x = []
+            y = []
+            
+            for num in All_data[test][model]:
+                # Maybe check if not empty first?
+                x.append(num)
+                y.append(All_data[test][model][num]['average'])
+    
+>>>>>>> parent of 16ac6f6... BACKUP
+=======
     
     for iter1, test in enumerate(All_data):
         fig = plt.figure(iter1)
@@ -262,6 +289,9 @@ plt.show()
 All_data = load_obj('Data_RRMSE')
 plot_RMSE_sea(All_data, models, test_name, 15)
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of 16ac6f6... BACKUP
+=======
 >>>>>>> parent of 16ac6f6... BACKUP
 =======
 >>>>>>> parent of 16ac6f6... BACKUP
