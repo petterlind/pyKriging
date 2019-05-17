@@ -14,6 +14,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import matplotlib
 import pickle
 import seaborn as sns
 import pandas as pd
@@ -21,6 +22,8 @@ import pandas as pd
 
 def plot_RMSE_sea(All_data, models, test_name, nr_exp):
     ''' boxplot the data from RMSE-run'''
+    #matplotlib.rcParams['font.family'] = 'cmu serif'
+    matplotlib.rcParams['font.family'] = "Times New Roman"
     
     # MYCKET MYCKET MER INFO HÄR FÖR ATT BYGGA OM DICTEN!
     # https://stackoverflow.com/questions/39344167/grouped-boxplot-with-seaborn
@@ -46,7 +49,6 @@ def plot_RMSE_sea(All_data, models, test_name, nr_exp):
     df = pd.DataFrame.from_dict(data)
     
     # loop through rows and see which are rosenbrock, branin
-    pdb.set_trace()    
     bool_branin = []
     bool_rose = []
     for fun in df.test:
@@ -64,23 +66,41 @@ def plot_RMSE_sea(All_data, models, test_name, nr_exp):
         else:
             bool_cub.append(True)
         
-    # df.rename(columns={'model':'Models',
-    #                       'exp':'Numbers of function evaluations',
-    #                       'RMSE':'Average RMSE'}, 
-    #              inplace=True)
+
     df_branin = df[np.logical_and(bool_branin, bool_cub)]
     df_rose = df[np.logical_and(bool_rose, bool_cub)]
     
-    # Rename
+    fig = plt.figure()
+    sns.boxplot(x="num", y="RMSE", hue="model", data=df_branin, palette="husl", showfliers=False) # .set_title("RMSE error, Branin")
+    sns.set(context='paper', style='white', palette='husl', font ='Times New Roman', font_scale=1, color_codes=True, rc=None)
+    L = plt.legend()
+    L.get_texts()[0].set_text('OKG - First order')
+    L.get_texts()[1].set_text('OKG - Second order')
+    L.get_texts()[2].set_text('SKG')
     
-
-
-    plt.figure()
-    sns.boxplot(x="num", y="RMSE", hue="model", data=df_branin, palette="husl", showfliers=False).set_title("RMSE error, Branin")
-    sns.set(context='poster', style='ticks', palette='husl', font='Times New Roman', font_scale=1, color_codes=True, rc=None)
+    plt.xlabel("Number of data points in each set")
+    plt.ylabel("Root mean square error (RMSE)")
     
-    plt.figure()
-    sns.boxplot(x="num", y="R_sq", hue="model", data=df_branin, palette="PRGn", showfliers=False).set_title("R_sq, Branin")
+    fig.set_size_inches(6, 5)
+    plt.tight_layout()
+    plt.savefig(r'C:\Users\pettlind\Dropbox\Presentationer\SMD2019\Abstract_Template_SMD2019_LaTeX\RMSE.png', format='png', dpi=1000)
+    
+    fig = plt.figure()
+    sns.boxplot(x="num", y="R_sq", hue="model", data=df_branin, palette="husl", showfliers=False)  #.set_title("R_sq, Branin")
+    sns.set(context='paper', style='white', palette='husl', font ='Times New Roman', font_scale=1, color_codes=True, rc=None)
+    L = plt.legend()
+    L.get_texts()[0].set_text('OKG - First order')
+    L.get_texts()[1].set_text('OKG - Second order')
+    L.get_texts()[2].set_text('SKG')
+    
+    plt.xlabel("Number of data points in each set")
+    plt.ylabel("Coefficient of determination, $R^2$")
+    
+    fig.set_size_inches(6, 5)
+    plt.tight_layout()
+    plt.savefig(r'C:\Users\pettlind\Dropbox\Presentationer\SMD2019\Abstract_Template_SMD2019_LaTeX\COD.png', format='png', dpi=1000)
+    
+    
     # sns.set(style="whitegrid")
     
     plt.figure()
@@ -168,12 +188,14 @@ def comp_data(numiter, models, test_name, save=True):
         
 
 # models = ['First', 'Second', 'Spline', 'Cubic', 'Cubic2']
-models = ['First', 'Second', 'Cubic', 'Cubic2']  # No spline
-test_name = ['rosenbrock', 'branin']
+# models = ['First', 'Second', 'Cubic', 'Cubic2']  # No spline
+models = ['Cubic']
+# test_name = ['rosenbrock', 'branin']
+test_name = ['branin']
 # models = ['First']  # No spline
-# comp_data(15, models, test_name, save=True)
-All_data = load_obj('Data_RRMSE')
-plot_RMSE_sea(All_data, models, test_name, 15)
+comp_data(20, models, test_name, save=True)
+# All_data = load_obj('Data_RRMSE')
+plot_RMSE_sea(All_data, models, test_name, 20)
 plt.show()
 pdb.set_trace()
 # plot_RRMSE(All_data)

@@ -237,6 +237,7 @@ class testfunctions():
         '''
         a = 1
         b = 100
+        
         try:
             if isinstance(x[0], np.ndarray):  # several points
                 f_vec = np.ones((np.size(x[:, 0]),)) * np.nan

@@ -20,7 +20,7 @@ class Test_RSM(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         unittest.TestCase.__init__(self, *args, **kwargs)
     
-        num_p = 30
+        num_p = 20
         # The Kriging model starts by defining a sampling plan, we use an optimal Latin Hypercube here
         # sp = samplingplan(k=2)
         self.RMSE_mean = []
@@ -32,9 +32,9 @@ class Test_RSM(unittest.TestCase):
         minx, maxx, miny, maxy = [-2, 2, -2, 2]
         self.X[:, 0] = minx + (maxx - minx) * self.X[:, 0]
         self.X[:, 1] = miny + (maxy - miny) * self.X[:, 1]
-        # self.testfun = pyKriging.testfunctions().branin
+        self.testfun = pyKriging.testfunctions().branin
         
-        self.testfun = pyKriging.testfunctions().rosenbrock
+        # self.testfun = pyKriging.testfunctions().rosenbrock
         self.y = self.testfun(self.X)
         
     # # def test_plot_spline_basis_fun(self):
@@ -88,8 +88,8 @@ class Test_RSM(unittest.TestCase):
         # And plot the results
         krig_cube.plot()
         krig_cube.plot_trend()
-        # krig_spline.plot_rad()
-    
+        krig_cube.plot_rad()
+        pdb.set_trace()
     
     # def test_reg_krig_spline(self):
     #     krig_spline = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='Bspline')

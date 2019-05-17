@@ -17,13 +17,15 @@ from matplotlib import cm
 import pdb
 
 class regression_kriging(matrixops):
-    def __init__(self, X, y, testfunction=None, reg=None, name='', testPoints=None, **kwargs):
+    def __init__(self, X, y, bounds=None, testfunction=None, reg=None, name='', testPoints=None, MLEP=True, **kwargs):
         self.X = copy.deepcopy(X)
         self.y = copy.deepcopy(y)
         self.testfunction = testfunction
+        self.flag_penal = MLEP
+        self.bounds = bounds
         self.name = name
-        self.n = self.X.shape[0]
-        self.k = self.X.shape[1]
+        self.n = self.X.shape[0]                    #  Number of points
+        self.k = self.X.shape[1]                    #  Number of Dimensions
         self.theta = np.ones(self.k)
         self.pl = np.ones(self.k) * 2.
         self.Lambda = 0
@@ -35,10 +37,10 @@ class regression_kriging(matrixops):
         self.reg = reg
         self.updateData()
         self.updateModel()
-        self.thetamin = 1e-4
+        self.thetamin = 1e-6
         self.thetamax = 100
-        self.pmin = 1.9
-        self.pmax = 2.1
+        self.pmin = 1e-6
+        self.pmax = 2
                     # regression order
 
         # Setup functions for tracking history
@@ -72,7 +74,7 @@ class regression_kriging(matrixops):
 
 
         matrixops.__init__(self)
-
+        
     def normX(self, X):
         '''
         :param X: An array of points (self.k long) in physical world units
@@ -96,7 +98,7 @@ class regression_kriging(matrixops):
 
     def inversenormX(self, X):
         '''
-        :param X: An array of points (self.k long) in normalized model units
+        :param X: An array of points (with self.k elem) in normalized model units
         :return X : An array of real world units
         '''
         scalar = False
@@ -146,6 +148,9 @@ class regression_kriging(matrixops):
         
         for i in range(self.n):
             self.y[i] = self.normy(self.y[i])
+        
+        if self.bounds is not None:
+            self.bounds = self.normX(self.bounds)
 
     def addPoint(self, newX, newy, norm=True):
         '''
@@ -161,7 +166,9 @@ class regression_kriging(matrixops):
         self.X = np.append(self.X, [newX], axis=0)
         self.y = np.append(self.y, newy)
         self.n = self.X.shape[0]
+        
         self.updateData()
+        
         while True:
             try:
                 self.updateModel()
@@ -185,14 +192,15 @@ class regression_kriging(matrixops):
 
     def updateModel(self):
         '''
-        The function rebuilds the Psi matrix to reflect new data or a change in hyperparamters
+        The function rebuilds the Psi matrix (R) to reflect new data or a change in hyperparamters
         '''
         try:
             self.regupdatePsi()
         except Exception as err:
-            pass
-            # print Exception, err
-            # raise Exception("bad params")
+            # pass
+            # print(Exception, err)
+            # pdb.set_trace()
+            raise Exception("bad params")
 
     def predict(self, X, norm=True):
         '''
@@ -252,7 +260,23 @@ class regression_kriging(matrixops):
                        self.predict_normalized(x))**2. / S**2.))))
             EI = EI_one + EI_two
         return EI
-
+        
+    def sasena_check(self):
+        '''' Eq 3.24 from Sasenas PhD thesis, Flexibility and Efficiency Enhancements for Constrained Global Design Optimization with Kriging Approximations
+        
+        Checks if MLE(theta, p) < -nlog(VAR(y))
+        
+        If true it indicates that the loglikelihood function is monotonic and that the fit might be bad.
+        '''
+        
+        check = self.SigmaSqr < - self.n * np.log(np.var(self.y))
+        if check:
+            print('Sasena check true!')
+        
+        return check
+        
+        
+        
     def infill_objective_mse(self, candidates, args):
         '''
         This acts
@@ -276,8 +300,30 @@ class regression_kriging(matrixops):
         for entry in candidates:
             fitness.append(-1 * self.expimp(entry))
         return fitness
+        
+    def infill_objective_spacefill(self,candidates, args):
+        '''
+        The infill objective is optimizing the intersite distance
+        :param candidates: An array of candidate design vectors from the infill global optimizer
+        :param args: args from the optimizer
+        :return fitness: An array of evaluated Expected Improvement values for the candidate population
+        '''
+        fitness = []
+        
+        for entry in candidates:
+            min_dist = 100
+            for i, point in enumerate(self.X):
+                dist = np.linalg.norm(entry - point)
+                if min_dist > dist:
+                    min_dist = dist
+                    # closest = point
+                    # index = i
+                
+            # Distance is then the objective to minimize, hence minus sign
+            fitness.append(-min_dist) # Maximizes this expression
+        return fitness
 
-    def infill(self, points, method='error', addPoint=True):
+    def infill(self, points, method='spacefill', addPoint=True):
         '''
         The function identifies where new points are needed in the model.
         :param points: The number of points to add to the model. Multiple points are added via imputation.
@@ -285,8 +331,8 @@ class regression_kriging(matrixops):
         :return: An array of coordinates identified by the infill
         '''
         # We'll be making non-permanent modifications to self.X and self.y here, so lets make a copy just in case
-        initX = np.copy(self.X)
-        inity = np.copy(self.y)
+        #initX = np.copy(self.X)
+        #inity = np.copy(self.y)
 
         # This array will hold the new values we add
         returnValues = np.zeros([points, self.k], dtype=float)
@@ -296,27 +342,39 @@ class regression_kriging(matrixops):
             ea = inspyred.swarm.PSO(Random())
             ea.terminator = self.no_improvement_termination
             ea.topology = inspyred.swarm.topologies.ring_topology
-            if method=='ei':
+            
+            if method == 'ei':
                 evaluator = self.infill_objective_ei
-            else:
+            elif method == 'spacefill':
+                evaluator = self.infill_objective_spacefill
+            elif method == 'error':
                 evaluator = self.infill_objective_mse
-
+            else:
+                raise ValueError('No infill strategy set')
+            
+            if self.bounds is None:  # No bounds specified, use interval [0,1] for all data
+                Bounds = ec.Bounder([0] * self.k, [1] * self.k)  # full problem, [0,1]
+            else:
+                Bounds = self.bounds # Note that these can be outside intervall [0.1]
+            
             final_pop = ea.evolve(generator=self.generate_population,
                                   evaluator=evaluator,
                                   pop_size=155,
                                   maximize=False,
-                                  bounder=ec.Bounder([0] * self.k, [1] * self.k),
+                                  bounder=Bounds,
                                   max_evaluations=20000,
                                   neighborhood_size=30,
                                   num_inputs=self.k)
             final_pop.sort(reverse=True)
             newpoint = final_pop[0].candidate
             returnValues[i][:] = newpoint
+            
             if addPoint:
-                self.addPoint(returnValues[i], self.predict(returnValues[i]), norm=True)
+                self.addPoint(returnValues[i], self.normy(self.predict(returnValues[i], norm=False)), norm=False) # Already normed x-data!
+                
 
-        self.X = np.copy(initX)
-        self.y = np.copy(inity)
+        #self.X = np.copy(initX) # added points and then removed them?!
+        #self.y = np.copy(inity)
         self.n = len(self.X)
         self.updateData()
         while True:
@@ -396,10 +454,10 @@ class regression_kriging(matrixops):
             # ea.observer = inspyred.ec.observers.stats_observer
             final_pop = ea.evolve(generator=self.generate_population,
                                   evaluator=self.fittingObjective,
-                                  pop_size=150,
+                                  pop_size=500, # 150
                                   maximize=False,
                                   bounder=ec.Bounder(lowerBound, upperBound),
-                                  max_evaluations=1000,
+                                  max_evaluations=10000, # 1000
                                   neighborhood_size=20,
                                   num_inputs=self.k)
             # Sort and print the best individual, who will be at index 0.
@@ -411,10 +469,10 @@ class regression_kriging(matrixops):
             ea.terminator = self.no_improvement_termination
             final_pop = ea.evolve(generator=self.generate_population,
                                   evaluator=self.fittingObjective,
-                                  pop_size=50, # 50
+                                  pop_size=500, # 50
                                   maximize=False,
                                   bounder=ec.Bounder(lowerBound, upperBound),
-                                  max_evaluations=1000, # 2000
+                                  max_evaluations=10000, # 2000, 1000
                                   num_elites=10, # 10
                                   mutation_rate=.05)
 
@@ -430,7 +488,7 @@ class regression_kriging(matrixops):
                 locOP_bounds.append([self.pmin, self.pmax])
             locOP_bounds.append([0, 1])
 
-            # Let's quickly double check that we're at the optimal value by running a quick local optimizaiton
+            # Let's quickly double check that we're at the optimal value by running a quick local optimization
             lopResults = minimize(self.fittingObjective_local, newValues, method='SLSQP', bounds=locOP_bounds, options={'disp': False})
 
             newValues = lopResults['x']
@@ -442,11 +500,15 @@ class regression_kriging(matrixops):
                 self.pl[i] = newValues[i + self.k]
             self.Lambda = newValues[-1]
             try:
+                flag_plateau = self.sasena_check()
                 self.updateModel()
             except:
                 pass
             else:
                 break
+                
+            # Sasena PhD thesis, 2002. Check for plateau value!
+            
 
     def fittingObjective(self, candidates, args):
         '''
@@ -468,11 +530,10 @@ class regression_kriging(matrixops):
                 self.regneglikelihood()
                 f = self.NegLnLike
             except Exception as e:
-                # print 'Failure in NegLNLike, failing the run'
-                # print Exception, e
+                #print('Failure in NegLNLike, failing the run')
+                # print(Exception, e)
                 f = 10000
             fitness.append(f)
-            
         return fitness
 
     def fittingObjective_local(self,entry):
@@ -495,16 +556,67 @@ class regression_kriging(matrixops):
             # print Exception, e
             f = 10000
         return f
+    
+    def plot_likelihood(self):
+        ''' Plots the likeliohood function '''
+        X, Y = np.meshgrid(np.linspace(self.thetamin, self.thetamax, 200), np.linspace(self.thetamin, self.thetamax, 200))
         
+        Z = []
+        self.pl[0] = 2
+        self.pl[1] = 2
+        tot_l = len(np.ravel(X))
+        index = 0
+        disp_v = 0
+        for x, y in zip(np.ravel(X), np.ravel(Y)):
+            
+            self.theta[0] = x
+            self.theta[1] = y
+            
+            try:
+                self.updateModel()
+                self.regneglikelihood()
+                f = self.NegLnLike
+                
+            except Exception as e:
+                #print('Failure in NegLNLike, failing the run')
+                # print(Exception, e)
+                f = np.nan
+                
+            index += 1
+            indicator = index / tot_l
+            if indicator >= disp_v:
+                print('----------------------')
+                print(index)
+                print('of')
+                print(tot_l)
+                print('----------------------')
+                disp_v += 0.1
+            Z.append(f)
+            
+        Z = np.array(Z).reshape(X.shape)
+        
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        # Plot the surface.
+        ax.plot_surface(X, Y, Z, cmap=cm.coolwarm)
+        
+        # ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y))
+        
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.show()
+    
     def plot_trend(self):
         X, Y = np.meshgrid(np.arange(0, 1, 0.05), np.arange(0, 1, 0.05))
         zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
         
-        # real function
-        z_real = np.array([self.testfunction(np.array([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
+        # real function    
+        X_Yvec = np.stack((np.ravel(X), np.ravel(Y))).T
+        X_unscaled = self.inversenormX(X_Yvec)
+        z_real = np.array([self.testfunction(np.array([x, y])) for x, y in X_unscaled])
         Z_r = z_real.reshape(X.shape)
-        
         
         fig = plt.figure()
         ax = fig.gca(projection='3d')
@@ -523,13 +635,15 @@ class regression_kriging(matrixops):
     def plot_rad(self):
         x = y = np.arange(0, 1, 0.05)
         X, Y = np.meshgrid(x, y)
-        zs = np.array([self.predict([x, y], norm=False) - self.inversenormy(self.trend_fun_val([x, y])) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        
+        zs = np.array([self.predict([x, y], norm=False) - self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
         
         # real function
-        z_real = np.array([self.testfunction(np.array([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
+        X_Yvec = np.stack((np.ravel(X), np.ravel(Y))).T
+        X_unscaled = self.inversenormX(X_Yvec)
+        z_real = np.array([self.testfunction(np.array([x, y])) for x, y in X_unscaled])
         Z_r = z_real.reshape(X.shape)
-        
         
         fig = plt.figure()
         ax = fig.gca(projection='3d')

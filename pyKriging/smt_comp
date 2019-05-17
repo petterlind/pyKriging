@@ -1,0 +1,9 @@
+def test_reg_krig_spline(self):
+    krig_cube = regression_kriging(self.X, self.y, testfunction=self.testfun, reg='Cubic')
+    krig_cube.train()
+
+    # And plot the results
+    krig_cube.plot()
+    krig_cube.plot_trend()
+    krig_cube.plot_rad()
+    pdb.set_trace()

@@ -154,7 +154,7 @@ class samplingplan():
 
         """
         #Pre-allocate memory
-        Index = np.arange(np.size(X3D,axis=2))
+        Index = np.arange(np.size(X3D, axis=2))
 
         #Bubble-sort
         swap_flag = 1
@@ -246,7 +246,7 @@ class samplingplan():
 
         return X_best
 
-    def mmphi(self,X,q=2,p=1):
+    def mmphi(self, X, q=2, p=1):
 
         """
         Calculates the sampling plan quality criterion of Morris and Mitchell
