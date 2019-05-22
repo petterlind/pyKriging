@@ -182,8 +182,7 @@ class kriging(matrixops):
         :return: Returns the 'real world' predicted value
         '''
         X = copy.deepcopy(X)
-        X = self.normX(X)  # WTF?
-        pdb.set_trace()
+        X = self.normX(X)
         return self.inversenormy(self.predict_normalized(X))
 
     def predict_var(self, X):
@@ -410,7 +409,6 @@ class kriging(matrixops):
 
             # Let's quickly double check that we're at the optimal value by running a quick local optimizaiton
             lopResults = minimize(self.fittingObjective_local, newValues, method='SLSQP', bounds=locOP_bounds, options={'disp': False})
-            pdb.set_trace()
             newValues = lopResults['x']
 
             # Finally, set our new theta and pl values and update the model again

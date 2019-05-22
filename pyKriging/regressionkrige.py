@@ -36,9 +36,11 @@ class regression_kriging(matrixops):
         self.updateData()
         self.updateModel()
         self.thetamin = 1e-4
-        self.thetamax = 100
+        self.thetamax = 50
         self.pmin = 1.9
         self.pmax = 2.1
+        self.Lambda_min = 0.05
+        self.Lambda_max = 1
                     # regression order
 
         # Setup functions for tracking history
@@ -382,8 +384,9 @@ class regression_kriging(matrixops):
         self.updateData()
 
         # Establish the bounds for optimization for theta and p values
-        lowerBound = [self.thetamin] * self.k + [self.pmin] * self.k + [0]
-        upperBound = [self.thetamax] * self.k + [self.pmax] * self.k + [1]
+        
+        lowerBound = [self.thetamin] * self.k + [self.pmin] * self.k + [self.Lambda_min]
+        upperBound = [self.thetamax] * self.k + [self.pmax] * self.k + [self.Lambda_max]
 
         #Create a random seed for our optimizer to use
         rand = Random()
@@ -428,11 +431,13 @@ class regression_kriging(matrixops):
 
             for i in range(self.k):
                 locOP_bounds.append([self.pmin, self.pmax])
-            locOP_bounds.append([0, 1])
+                
+            locOP_bounds.append([self.Lambda_min, self.Lambda_max])
 
             # Let's quickly double check that we're at the optimal value by running a quick local optimizaiton
             lopResults = minimize(self.fittingObjective_local, newValues, method='SLSQP', bounds=locOP_bounds, options={'disp': False})
-
+            
+            
             newValues = lopResults['x']
 
             # Finally, set our new theta and pl values and update the model again
@@ -593,14 +598,13 @@ class regression_kriging(matrixops):
             fig = pylab.figure(figsize=(8, 6))
             samplePoints = list(zip(*self.X))
             # Create a set of data to plot
-            plotgrid = 61
+            plotgrid = 50
             x = np.linspace(self.normRange[0][0], self.normRange[0][1], num=plotgrid)
             y = np.linspace(self.normRange[1][0], self.normRange[1][1], num=plotgrid)
 
             # x = np.linspace(0, 1, num=plotgrid)
             # y = np.linspace(0, 1, num=plotgrid)
             X, Y = np.meshgrid(x, y)
-
             # Predict based on the optimized results
             zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
             Z = zs.reshape(X.shape)
@@ -612,6 +616,7 @@ class regression_kriging(matrixops):
 
             spx = (self.X[:, 0] * (self.normRange[0][1] - self.normRange[0][0])) + self.normRange[0][0]
             spy = (self.X[:, 1] * (self.normRange[1][1] - self.normRange[1][0])) + self.normRange[1][0]
+            spz = np.array([self.testfunction([x, y]) for x, y in zip(np.ravel(spx), np.ravel(spy))])
             contour_levels = 25
 
             ax = fig.add_subplot(222)
@@ -620,17 +625,17 @@ class regression_kriging(matrixops):
             pylab.plot(spx, spy,'ow')
             pylab.xlabel('test1')
             pylab.ylabel('test2')
-            pylab.title('Predicted variance')
+            pylab.title(self.reg)
 
             ax = fig.add_subplot(221)
             if self.testfunction:
                 # Setup the truth function
-                zt = self.testfunction( np.array(list(zip(np.ravel(X), np.ravel(Y)))) )
+                zt = self.testfunction(np.array(list(zip(np.ravel(X), np.ravel(Y)))) )
                 ZT = zt.reshape(X.shape)
                 CS = pylab.contour(X, Y, ZT, contour_levels, colors='k', zorder=2)
-                pylab.xlabel('test5')
-                pylab.ylabel('test6')
-                pylab.title('True function')
+                # pylab.xlabel('test5')
+                # pylab.ylabel('test6')
+                # pylab.title('True function')
 
             # contour_levels = np.linspace(min(zt), max(zt),50)
             if self.testfunction:
@@ -646,10 +651,11 @@ class regression_kriging(matrixops):
             ax = fig.add_subplot(212, projection='3d')
             # fig = plt.gcf()
             #ax = fig.gca(projection='3d')
-            Approx = ax.plot_surface(X, Y, Z, rstride=3, cstride=3, alpha=0.5, cmap='jet')
+            Approx = ax.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet', label='Real')
             
             if self.testfunction:
-                Real = ax.plot_wireframe(X, Y, ZT, rstride=3, cstride=3)
+                Real = ax.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Approx')
+                ax.scatter(spx, spy, spz, 'k')
                 pylab.xlabel('test9')
                 pylab.ylabel('test10')
                 # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
@@ -787,7 +793,6 @@ class regression_kriging(matrixops):
         
         
         # points = self.inversenormX(X)  # Scales the data if not in [0,1]!
-        # pdb.set_trace()
         # for x, y, i in zip(np.ravel(points[:, 0]), np.ravel(points[:, 1]), np.arange(n)):
             # f_vec[i] = self.predict([x, y], norm=False)  # Norm False, already normalized
             # y_vec[i] = self.testfunction([x, y])
@@ -808,7 +813,6 @@ class regression_kriging(matrixops):
         R_sq = 1 - inside / SS_tot
         
         if RMSD < 0: #  or RMSD > 1: #  or R_sq > 1:  # R_sq can be less than zero! - fits data worse than horizontal line.
-            pdb.set_trace()
             raise ValueError('Something of with error estimate!')
             
         return R_sq, RMSD  # In percentage!

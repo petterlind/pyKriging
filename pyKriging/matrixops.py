@@ -1,5 +1,6 @@
 
 import numpy as np
+from scipy import linalg as la
 from numpy.matlib import rand,zeros,ones,empty,eye
 from geomdl import helpers
 import scipy
@@ -107,12 +108,12 @@ class matrixops():
         
     def mean_f(self, x, Bspl):
         
-        if self.reg is None or self.reg == 'constant':
-            # n = len(x)
-            # f = np.ones((n,))
-            raise NotImplementedError
+        # Produce one row in the F matrix
+        if self.reg is None or self.reg.lower() == 'constant':
+            f = np.array([1])
+            return f
             
-        elif self.reg == 'First':
+        elif self.reg.lower() == 'first':
             # 1, x1, x2
             # F = np.array([[1] * n, [x[0]] * n, [x[1]] * n]).T
             f = np.array([1, x[0], x[1], x[0] * x[1]])
@@ -120,28 +121,28 @@ class matrixops():
             # f = np.array([1, x[0], x[1], x[0] * x[1]**4, x[0]**4, x[1]**4])
             return f
             
-        elif self.reg == 'Second':
+        elif self.reg.lower() == 'second':
             f = np.array([1, x[0], x[1], x[0] * x[1], x[0]**2, x[1]**2])
             return f
             
-        elif self.reg == 'Third':
+        elif self.reg.lower() == 'third':
             raise NotImplementedError
             
-        elif self.reg == 'Cubic':
+        elif self.reg.lower() == 'cubic':
             ''' Natural cubic spline, implementation from ch 5.3 in The elements of statisitical modeling
             '''
             knots = np.linspace(0, 1, num=3)
             f = nc.basis_2d(x, knots)
             return f
             
-        elif self.reg == 'Cubic2':
+        elif self.reg.lower() == 'cubic2':
             ''' Natural cubic spline, implementation from ch 5.3 in The elements of statisitical modeling
             '''
             knots = np.linspace(0, 1, num=4)
             f = nc.basis_2d(x, knots)
             return f
             
-        elif self.reg == 'Bspline':
+        elif self.reg.lower() == 'bspline':
             
             Bspl = BSpline.Surface()
             Bspl.delta = 0.025
@@ -242,27 +243,30 @@ class matrixops():
                 self.distance[i, j] = np.abs((self.X[i] - self.X[j]))  # Every position in this matrix is an array of dimension k!
         
         F = []
-        if self.reg == 'First' or self.reg == 'Second' or self.reg == 'Third':
-            for i in range(0, self.n):
-                F.append(self.mean_f(self.X[i], None).tolist())
+        try: # If not regression kriging its lacking the self.reg option in the class!
+            if self.reg.lower() == 'constant' or self.reg.lower() == 'first' or self.reg.lower() == 'second' or self.reg.lower() == 'third':
+                for i in range(0, self.n):
+                    F.append(self.mean_f(self.X[i], None).tolist())
                 
-            self.F = np.array(F)
-            
-        elif self.reg == 'Bspline' or self.reg == 'Cubic' or self.reg == 'Cubic2':
-            # FUTURE, set bspline variables before this function call
-            self.F = self.mean_f(self.X, None)
-        else:
-            print('Unknown regression type, or reg type not set!')
-            raise ValueError
+                self.F = np.array(F)
+                
+            elif self.reg == 'Bspline' or self.reg == 'Cubic' or self.reg == 'Cubic2':
+                # FUTURE, set bspline variables before this function call
+                self.F = self.mean_f(self.X, None)
+            else:
+                print('Unknown regression type, or reg type not set!')
+                raise ValueError
+        except:
+            pass
             
     def updatePsi(self):
         self.Psi = np.zeros((self.n, self.n), dtype=np.float)
         self.one = np.ones(self.n)
         self.psi = np.zeros((self.n, 1))
-        newPsi = np.exp(-np.sum(self.theta *np.power(self.distance, self.pl), axis=2))
+        newPsi = np.exp(-np.sum(self.theta * np.power(self.distance, self.pl), axis=2))
         self.Psi = np.triu(newPsi, 1)
         self.Psi = self.Psi + self.Psi.T + np.mat(eye(self.n)) + np.multiply(np.mat(eye(self.n)), np.spacing(1))
-        self.U = np.linalg.cholesky(self.Psi)
+        self.U = la.cholesky(self.Psi)
         self.U = self.U.T  # Upper triangular cholesky decomposition.
 
     def regupdatePsi(self):
@@ -272,38 +276,46 @@ class matrixops():
         newPsi = np.exp(-np.sum(self.theta * np.power(self.distance, self.pl), axis=2))
         self.Psi = np.triu(newPsi, 1)
         self.Psi = self.Psi + self.Psi.T + eye(self.n) + eye(self.n) * (self.Lambda)
-        
-        # print('Remember to remove this!')
-        # self.Psi = np.diag(np.ones((len(self.X),)))
-        
-        self.U = np.linalg.cholesky(self.Psi)
+        self.U = la.cholesky(self.Psi)
         self.U = np.matrix(self.U.T)
 
     def neglikelihood(self):
         self.LnDetPsi = 2 * np.sum(np.log(np.abs(np.diag(self.U))))
 
-        a = np.linalg.solve(self.U.T, self.one.T)
-        b = np.linalg.solve(self.U, a)
+        a = la.solve(self.U.T, self.one.T)
+        b = la.solve(self.U, a)
         c = self.one.T.dot(b)
-        d = np.linalg.solve(self.U.T, self.y)
-        e = np.linalg.solve(self.U, d)
+        d = la.solve(self.U.T, self.y)
+        e = la.solve(self.U, d)
         
         self.mu=(self.one.T.dot(e))/c
         
-        self.SigmaSqr = ((self.y-self.one.dot(self.mu)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T,(self.y-self.one.dot(self.mu))))))/self.n
-        self.NegLnLike=-1.*(-(self.n/2.)*np.log(self.SigmaSqr) - 0.5*self.LnDetPsi)
-
+        self.SigmaSqr = ((self.y-self.one.dot(self.mu)).T.dot(la.solve(self.U, la.solve(self.U.T,(self.y-self.one.dot(self.mu)))))) / self.n
+        self.NegLnLike=-1.*(-(self.n/2.)*np.log(self.SigmaSqr) - 0.5 * self.LnDetPsi)
+        
     def regneglikelihood(self):
         self.LnDetPsi = 2 * np.sum(np.log(np.abs(np.diag(self.U))))
-        
         # Weighted least square
-        if self.reg == 'First' or self.reg == 'Second' or self.reg == 'Third' or self.reg == 'Cubic' or self.reg == 'Cubic2':
-                self.beta = np.linalg.solve(np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.F))), (np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.y)))))
+        if self.reg.lower() == 'constant' or self.reg.lower() == 'first' or self.reg.lower() == 'second' or self.reg.lower() == 'third' or self.reg.lower() == 'cubic' or self.reg.lower() == 'cubic2':
+            
+                Ft = np.matmul(self.F.T, la.solve_triangular(self.U, la.solve_triangular(self.U.T, self.F), lower=True))
+                Yt = (np.matmul(self.F.T, la.solve_triangular(self.U, la.solve_triangular(self.U.T, self.y), lower=True)))
                 
-                # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
-                self.SigmaSqr = ((self.y - self.F.dot(self.beta)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.F.dot(self.beta)))))) / self.n
+                # Check condition number on relevant matrices Ft and R
+                sv1, v1 = la.eig(Ft)
+                sv2, v2 = la.eigh(self.Psi)
+                max_cond = np.max([np.abs(np.max(sv1) / np.min(sv1)), np.abs(np.max(sv2) / np.min(sv2))])
                 
-        elif self.reg == 'Bspline':
+                Machine_eps = np.finfo(np.double).eps
+                if max_cond > 1 / Machine_eps:
+                    print('R or Ft have bad condition! Bad hyperparameters')
+                    raise ValueError
+                
+                self.beta = la.solve(Ft, Yt)
+                # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(la.solve(self.U, la.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
+                self.SigmaSqr = ((self.y - self.F.dot(self.beta)).T.dot(la.solve(self.U, la.solve(self.U.T, (self.y - self.F.dot(self.beta)))))) / self.n
+                
+        elif self.reg.lower() == 'bspline':
         
             # Test without values on the correlation matrix (weights)
             # upd_surf = self.controlPointsOpt(self.Bspl, self.X, self.y, np.diag(np.ones((len(self.X),))))  # change to self.Psi!
@@ -316,52 +328,78 @@ class matrixops():
         
             # self.plot_trend()
             # # Exact same as for polynomials (they are indeed polynomials!)
-            # self.beta = np.linalg.solve(np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.F))), (np.matmul(self.F.T, np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.y)))))
+            # self.beta = la.solve(np.matmul(self.F.T, la.solve(self.U, la.solve(self.U.T, self.F))), (np.matmul(self.F.T, la.solve(self.U, la.solve(self.U.T, self.y)))))
             # 
-            # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
-            self.SigmaSqr = ((self.y - self.F.dot(self.beta)).T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, (self.y - self.F.dot(self.beta)))))) / self.n
+            # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(la.solve(self.U, la.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
+            self.SigmaSqr = ((self.y - self.F.dot(self.beta)).T.dot(la.solve(self.U, la.solve(self.U.T, (self.y - self.F.dot(self.beta)))))) / self.n
         else:
             print('Unknown selection in regneglikelihood function')
             raise NotImplementedError
             
         self.NegLnLike = -1. * (-(self.n / 2.) * np.log(self.SigmaSqr) - 0.5 * self.LnDetPsi)
     
-    def trend_fun_val(self, x):
+    def trend_fun_val(self, x_vec):
         '''
         Made for plotting the trend function value. 
         Rewrite it and use it in predict_normalized for clearear code interpretation!
         '''
-        if self.reg != 'Bspline' or self.reg == 'Cubic' or self.reg == 'Cubic2':
-            f = self.mean_f(x, None).dot(self.beta)
+        
+        # check if scalar
+        f_v = np.array(np.nan)
+        if np.isscalar(x_vec[1]):
+            x_vec = [x_vec] # So that the first element in list is x itself!
             
-        elif self.reg == 'Bspline':
-            f = self.Bspl.evaluate_single(x)[-1]
-        return f
-
-    def predict_normalized(self, x):
-        for i in range(self.n):
-            self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
-            
-        try:
-            z = self.y - np.dot(self.F, self.beta)
-        except:
-            print('EXCEPT!!! (constant mean value)')
-            z = self.y - self.one.dot(self.mu)
-            
-        a = np.linalg.solve(self.U.T, z)
-        b = np.linalg.solve(self.U, a)
-        c = self.psi.T.dot(b)
-            
-        try:
-            if self.reg != 'Bspline':
-                f = self.mean_f(x, None).dot(self.beta) + c
+        for x in x_vec:
+            if self.reg != 'Bspline' or self.reg == 'Cubic' or self.reg == 'Cubic2':
+                f = self.mean_f(x, None).dot(self.beta)
                 
             elif self.reg == 'Bspline':
-                f = self.Bspl.evaluate_single(x)[-1] + c
-        except:
-            print('EXCEPT!!! (constant mean value)')
-            f = self.mu + c
-        return f[0]
+                f = self.Bspl.evaluate_single(x)[-1]
+                
+            f_v = np.append(f_v, f)
+        
+        return f_v[~np.isnan(f_v)]
+
+    def predict_normalized(self, x_vec):
+        
+        # check if scalar
+        
+        f_v = np.array(np.nan)
+        if np.isscalar(x_vec[0]):
+            x_vec = [x_vec]  # So that the first element in list is x itself!
+            
+        for x in x_vec:
+        
+            for i in range(self.n):
+                self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
+            
+            try:
+                z = self.y - np.dot(self.F, self.beta)
+            except:
+                print('EXCEPT!!! (constant mean value)')
+                pdb.set_trace()
+                z = self.y - self.one.dot(self.mu)
+                
+            # a = la.solve_triangular(self.U.T, z)
+            # b = la.solve_triangular(self.U, a, lower=True)
+            
+            a = la.solve_triangular(self.U, z, lower=True)
+            b = la.solve_triangular(self.U.T, a)
+            
+            c = self.psi.T.dot(b)
+            
+            try:
+                if self.reg != 'Bspline':
+                    f = self.mean_f(x, None).dot(self.beta) + c
+                elif self.reg == 'Bspline':
+                    f = self.Bspl.evaluate_single(x)[-1] + c
+            except:
+                print('EXCEPT!!! (constant mean value)')
+                f = self.mu + c
+            f_v = np.append(f_v, f[0])
+            f_v[~np.isnan(f_v)]
+        # if isscalar(f_v)
+        return f_v[~np.isnan(f_v)]
 
     def predicterr_normalized(self, x):
         for i in range(self.n):
@@ -370,7 +408,7 @@ class matrixops():
             except Exception as e:
                 print(Exception, e)
         try:
-            SSqr = self.SigmaSqr * (1 - self.psi.T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.psi))))
+            SSqr = self.SigmaSqr * (1 - self.psi.T.dot(la.solve(self.U, la.solve(self.U.T, self.psi))))
         except Exception as e:
             print(self.U.shape)
             print(self.SigmaSqr.shape)
@@ -388,7 +426,7 @@ class matrixops():
             except Exception as e:
                 print(Exception,e)
         try:
-            SSqr = self.SigmaSqr * ( 1 + self.Lambda - self.psi.T.dot(np.linalg.solve(self.U, np.linalg.solve(self.U.T, self.psi))))
+            SSqr = self.SigmaSqr * ( 1 + self.Lambda - self.psi.T.dot(la.solve(self.U, la.solve(self.U.T, self.psi))))
         except Exception as e:
             print(Exception, e)
             pass

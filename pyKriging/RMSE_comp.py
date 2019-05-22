@@ -168,7 +168,7 @@ def comp_data(numiter, models, test_name, save=True):
         
 
 # models = ['First', 'Second', 'Spline', 'Cubic', 'Cubic2']
-models = ['First', 'Second', 'Cubic', 'Cubic2']  # No spline
+models = ['Constant', 'First', 'Second', 'Cubic']
 test_name = ['rosenbrock', 'branin']
 # models = ['First']  # No spline
 # comp_data(15, models, test_name, save=True)
