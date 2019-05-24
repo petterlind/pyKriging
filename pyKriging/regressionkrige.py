@@ -39,7 +39,7 @@ class regression_kriging(matrixops):
         self.thetamax = 50
         self.pmin = 1.9
         self.pmax = 2.1
-        self.Lambda_min = 0.05
+        self.Lambda_min = 0.1
         self.Lambda_max = 1
                     # regression order
 
@@ -550,7 +550,7 @@ class regression_kriging(matrixops):
         ax.set_zlabel('Z')
         plt.show()
 
-    def plot(self, labels=False, show=True):
+    def plot(self, fig=None, ax=None, labels=False, show=True, plot_int=None):
         '''
         This function plots 2D and 3D models
         :param labels:
@@ -594,16 +594,24 @@ class regression_kriging(matrixops):
                 mlab.show()
 
         if self.k == 2:
-
-            fig = pylab.figure(figsize=(8, 6))
+            
+            if fig is None:
+                fig = pylab.figure(figsize=(8, 6))
+                
             samplePoints = list(zip(*self.X))
             # Create a set of data to plot
             plotgrid = 50
-            x = np.linspace(self.normRange[0][0], self.normRange[0][1], num=plotgrid)
-            y = np.linspace(self.normRange[1][0], self.normRange[1][1], num=plotgrid)
-
-            # x = np.linspace(0, 1, num=plotgrid)
-            # y = np.linspace(0, 1, num=plotgrid)
+            
+            if plot_int is None:
+                x = np.linspace(self.normRange[0][0], self.normRange[0][1], num=plotgrid)
+                y = np.linspace(self.normRange[1][0], self.normRange[1][1], num=plotgrid)
+                
+            else:
+                xmin, xmax, ymin, ymax = plot_int
+                x = np.linspace(xmin, xmax, num=plotgrid)
+                y = np.linspace(ymin, ymax, num=plotgrid)
+            
+            
             X, Y = np.meshgrid(x, y)
             # Predict based on the optimized results
             zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
@@ -616,54 +624,60 @@ class regression_kriging(matrixops):
 
             spx = (self.X[:, 0] * (self.normRange[0][1] - self.normRange[0][0])) + self.normRange[0][0]
             spy = (self.X[:, 1] * (self.normRange[1][1] - self.normRange[1][0])) + self.normRange[1][0]
-            spz = np.array([self.testfunction([x, y]) for x, y in zip(np.ravel(spx), np.ravel(spy))])
+            if self.testfunction is not None:
+                spz = np.array([self.testfunction([x, y]) for x, y in zip(np.ravel(spx), np.ravel(spy))])
             contour_levels = 25
+            
+            
+            # BELOW ARE THE TWO ORIGINAL PLOTS!
+            # ax = fig.add_subplot(222)
+            # CS = pylab.contourf(X, Y, Ze, contour_levels)
+            # pylab.colorbar()
+            # pylab.plot(spx, spy,'ow')
+            # pylab.xlabel('test1')
+            # pylab.ylabel('test2')
+            # pylab.title(self.reg)
 
-            ax = fig.add_subplot(222)
-            CS = pylab.contourf(X, Y, Ze, contour_levels)
-            pylab.colorbar()
-            pylab.plot(spx, spy,'ow')
-            pylab.xlabel('test1')
-            pylab.ylabel('test2')
-            pylab.title(self.reg)
-
-            ax = fig.add_subplot(221)
-            if self.testfunction:
-                # Setup the truth function
+            # ax = fig.add_subplot(221)
+            # if self.testfunction:
+            #     # Setup the truth function
+            
+            if self.testfunction is not None:
                 zt = self.testfunction(np.array(list(zip(np.ravel(X), np.ravel(Y)))) )
                 ZT = zt.reshape(X.shape)
-                CS = pylab.contour(X, Y, ZT, contour_levels, colors='k', zorder=2)
-                # pylab.xlabel('test5')
-                # pylab.ylabel('test6')
-                # pylab.title('True function')
+            #     CS = pylab.contour(X, Y, ZT, contour_levels, colors='k', zorder=2)
 
             # contour_levels = np.linspace(min(zt), max(zt),50)
-            if self.testfunction:
-                contour_levels = CS.levels
-                delta = np.abs(contour_levels[0]-contour_levels[1])
-                contour_levels = np.insert(contour_levels, 0, contour_levels[0]-delta)
-                contour_levels = np.append(contour_levels, contour_levels[-1]+delta)
-
-            CS = plt.contourf(X,Y,Z,contour_levels,zorder=1)
-            pylab.plot(spx, spy, 'ow', zorder=3)
-            pylab.colorbar()
-            
-            ax = fig.add_subplot(212, projection='3d')
+            # if self.testfunction:
+            #     contour_levels = CS.levels
+            #     delta = np.abs(contour_levels[0]-contour_levels[1])
+            #     contour_levels = np.insert(contour_levels, 0, contour_levels[0]-delta)
+            #     contour_levels = np.append(contour_levels, contour_levels[-1]+delta)
+            # 
+            # CS = plt.contourf(X,Y,Z,contour_levels,zorder=1)
+            # pylab.plot(spx, spy, 'ow', zorder=3)
+            # pylab.colorbar()
+            if ax is None:
+                ax = fig.add_subplot(111, projection='3d')
+            # ax = fig.add_subplot(212, projection='3d')
             # fig = plt.gcf()
             #ax = fig.gca(projection='3d')
-            Approx = ax.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet', label='Real')
+            if self.testfunction is not None:
+                Real = ax.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet', label='Real')
             
-            if self.testfunction:
-                Real = ax.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Approx')
-                ax.scatter(spx, spy, spz, 'k')
-                pylab.xlabel('test9')
-                pylab.ylabel('test10')
-                # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
-                # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
-                
-                # Now add the legend with some customizations.
-                # legend = ax.legend(loc='upper center', shadow=True)
-                # legend = ax.legend(loc='upper center', shadow=True)
+            
+            Approx = ax.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Approx')
+            
+            ax.scatter(spx, spy, self.inversenormy(self.y), 'k')
+            # pylab.xlabel('test9')
+            # pylab.ylabel('test10')
+            pylab.title(self.reg)
+            # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
+            # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
+            
+            # Now add the legend with some customizations.
+            # legend = ax.legend(loc='upper center', shadow=True)
+            # legend = ax.legend(loc='upper center', shadow=True)
             if show:
                 pylab.show()
 

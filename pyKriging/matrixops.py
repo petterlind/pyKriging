@@ -305,7 +305,6 @@ class matrixops():
                 sv1, v1 = la.eig(Ft)
                 sv2, v2 = la.eigh(self.Psi)
                 max_cond = np.max([np.abs(np.max(sv1) / np.min(sv1)), np.abs(np.max(sv2) / np.min(sv2))])
-                
                 Machine_eps = np.finfo(np.double).eps
                 if max_cond > 1 / Machine_eps:
                     print('R or Ft have bad condition! Bad hyperparameters')
