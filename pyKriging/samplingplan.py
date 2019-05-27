@@ -4,19 +4,88 @@ import math as m
 import os
 import pickle
 import pyKriging
+import matplotlib.pyplot as plt
+import scipy.optimize as opt
 import pdb
 
 
 class samplingplan():
-    def __init__(self, k=2):
+    def __init__(self, k=2, fix_p=None):
         self.samplingplan = []
         self.k = k
+        self.x_fix = fix_p
         self.path = os.path.dirname(pyKriging.__file__)
         self.path = self.path + '/sampling_plans/'
     
     def MC(self, n):
         return np.random.rand(n, 2)
         
+    def sphere_opt(self, n):
+        ''' Sample n random optimal spacefilling samples within a circle of dimension k and radius 1 centered at origo. Also, already picked values on position self.x_fix are also considered
+        source: http://6degreesoffreedom.co/circle-random-sampling/'''
+        
+        # Assume R = 1, and that the circle is centered around origo
+        R = 1
+        ml = 1
+        
+        # Initial random samples within a circle
+        x_0 = np.ones((n, self.k))
+        for iter, row in enumerate(x_0):
+            x_row = np.random.sample((self.k, ))
+            x_row[:-2] = np.sin(x_row[:-2] * 2 * np.pi)
+            x_row[-1] = R * x_row[-1] ** (1 / n)
+            x_0[iter, :] = x_row
+        
+        def func(x_rav, x_fix):
+            ''' computes the minimum distance between all points in the dataset, objective function'''
+            
+            x_mat = x_rav.reshape(-1, self.k)
+            if x_fix is not None:
+                x_full = np.append(x_mat, x_fix)
+            
+            else:
+                x_full = x_mat  # No fixed values in first iteration!
+                
+            n_ro, n_co = x_full.shape
+            
+            len_obj = n_ro * (n_ro - 1) / 2
+            obj_v = np.ones((int(len_obj), )) * np.nan
+            
+            k = 0
+            for i in np.arange(n_ro):
+                for j in np.arange(i+1, n_ro):
+                        obj_v[k] = np.linalg.norm(x_full[i, :] - x_full[j, :])
+                        k += 1
+            
+            min_obj = np.min(obj_v)
+            
+            # fig = plt.figure()
+            # ax = fig.add_subplot(111, projection='3d')            
+            # ax.plot(x_full[:, 0], x_full[:, 1], 'ro')
+            
+            assert ~ np.isnan(min_obj)
+            return - min_obj
+        
+        # One constraint per point - i.e. inside the circle
+        cons = []
+        for i in np.arange(n):
+            cons.append({'type': 'ineq', 'fun': lambda x: ml - np.linalg.norm(x[self.k * i: self.k - 1])})
+            
+        func_lambda = lambda x: func(x, self.x_fix)
+        res = opt.minimize(func_lambda, np.ravel(x_0), method='SLSQP', constraints=cons)
+        
+        if res.success:
+            xres = res.x.reshape(-1, self.k)
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')            
+            ax.plot(xres[:, 0], xres[:, 1], 'ro')
+            pdb.set_trace()
+            return xres
+            
+        else:
+            print('optimization for sampling within hypersphere failed')
+            raise NotImplementedError  # Do smth?
+            
     def grid(self, n):
         ''' generates ordered sampling points, grid-like
         '''
@@ -215,13 +284,13 @@ class samplingplan():
         """
         X_s = X_start.copy()
 
-        n = np.size(X_s,0)
+        n = np.size(X_s, 0)
 
         X_best = X_s
 
         Phi_best = self.mmphi(X_best)
 
-        leveloff = m.floor(0.85*iterations)
+        leveloff = m.floor(0.85 * iterations)
 
         for it in range(0,iterations):
             if it < leveloff:
@@ -229,10 +298,10 @@ class samplingplan():
             else:
                 mutations = 1
 
-            X_improved  = X_best
+            X_improved = X_best
             Phi_improved = Phi_best
 
-            for offspring in range(0,population):
+            for offspring in range(0, population):
                 X_try = self.perturb(X_best, mutations)
                 Phi_try = self.mmphi(X_try, q)
 
