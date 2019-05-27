@@ -166,10 +166,6 @@ class matrixops():
                     initial_CP.append([i_vec[i], j_vec[j], mean_inp])
             Bspl.set_ctrlpts(initial_CP, ctrlpts_size_u, ctrlpts_size_v)
             
-            ##### KNOT VECTOR ?! ################
-            # Bspl.knotvector_u = geom_util.generate_knot_vector(Bspl.degree_u, ctrlpts_size_u)
-            # Bspl.knotvector_v = geom_util.generate_knot_vector(Bspl.degree_v, ctrlpts_size_v)
-            
             # open
             Bspl.knotvector_u = tuple(np.linspace(0, 1, num=Bspl.degree_u + ctrlpts_size_u + 1).tolist())
             Bspl.knotvector_v = tuple(np.linspace(0, 1, num=Bspl.degree_v + ctrlpts_size_v + 1).tolist())
@@ -178,7 +174,6 @@ class matrixops():
             vec = np.linspace(0.1, 1, num=np.floor(numb / 2)).tolist()
             k = 2
             vec = [elem ** k for elem in vec]
-            # vec = np.exp(vec)
             # Normalize
             vec = vec / (2 * np.max(vec))
             
@@ -288,9 +283,9 @@ class matrixops():
         d = la.solve(self.U.T, self.y)
         e = la.solve(self.U, d)
         
-        self.mu=(self.one.T.dot(e))/c
+        self.mu = (self.one.T.dot(e)) / c
         
-        self.SigmaSqr = ((self.y-self.one.dot(self.mu)).T.dot(la.solve(self.U, la.solve(self.U.T,(self.y-self.one.dot(self.mu)))))) / self.n
+        self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(la.solve(self.U, la.solve(self.U.T,(self.y-self.one.dot(self.mu)))))) / self.n
         self.NegLnLike=-1.*(-(self.n/2.)*np.log(self.SigmaSqr) - 0.5 * self.LnDetPsi)
         
     def regneglikelihood(self):
@@ -316,20 +311,12 @@ class matrixops():
                 
         elif self.reg.lower() == 'bspline':
         
-            # Test without values on the correlation matrix (weights)
-            # upd_surf = self.controlPointsOpt(self.Bspl, self.X, self.y, np.diag(np.ones((len(self.X),))))  # change to self.Psi!
-        
             # Optimization in order to find the CP values
             upd_surf = self.controlPointsOpt(self.Bspl, self.X, self.y, np.array(self.Psi))
             self.beta = []
             for pt in upd_surf.ctrlpts:  # Bspline
                 self.beta.append(pt[-1])
         
-            # self.plot_trend()
-            # # Exact same as for polynomials (they are indeed polynomials!)
-            # self.beta = la.solve(np.matmul(self.F.T, la.solve(self.U, la.solve(self.U.T, self.F))), (np.matmul(self.F.T, la.solve(self.U, la.solve(self.U.T, self.y)))))
-            # 
-            # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(la.solve(self.U, la.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
             self.SigmaSqr = ((self.y - self.F.dot(self.beta)).T.dot(la.solve(self.U, la.solve(self.U.T, (self.y - self.F.dot(self.beta)))))) / self.n
         else:
             print('Unknown selection in regneglikelihood function')
@@ -362,7 +349,6 @@ class matrixops():
     def predict_normalized(self, x_vec):
         
         # check if scalar
-        
         f_v = np.array(np.nan)
         if np.isscalar(x_vec[0]):
             x_vec = [x_vec]  # So that the first element in list is x itself!
@@ -372,32 +358,21 @@ class matrixops():
             for i in range(self.n):
                 self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
             
-            try:
-                z = self.y - np.dot(self.F, self.beta)
-            except:
-                print('EXCEPT!!! (constant mean value)')
-                pdb.set_trace()
-                z = self.y - self.one.dot(self.mu)
-                
-            # a = la.solve_triangular(self.U.T, z)
-            # b = la.solve_triangular(self.U, a, lower=True)
+            z = self.y - np.dot(self.F, self.beta)
             
             a = la.solve_triangular(self.U, z, lower=True)
             b = la.solve_triangular(self.U.T, a)
             
             c = self.psi.T.dot(b)
             
-            try:
-                if self.reg != 'Bspline':
-                    f = self.mean_f(x, None).dot(self.beta) + c
-                elif self.reg == 'Bspline':
-                    f = self.Bspl.evaluate_single(x)[-1] + c
-            except:
-                print('EXCEPT!!! (constant mean value)')
-                f = self.mu + c
+            if self.reg != 'Bspline':
+                f = self.mean_f(x, None).dot(self.beta) + c
+            elif self.reg == 'Bspline':
+                f = self.Bspl.evaluate_single(x)[-1] + c
+            
             f_v = np.append(f_v, f[0])
             f_v[~np.isnan(f_v)]
-        # if isscalar(f_v)
+            
         return f_v[~np.isnan(f_v)]
 
     def predicterr_normalized(self, x):
