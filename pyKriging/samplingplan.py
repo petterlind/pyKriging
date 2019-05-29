@@ -26,18 +26,11 @@ class samplingplan():
         
         # Assume R = 1, and that the circle is centered around origo
         R = 1
-        ml = 1
-        
         n = 20
-        # print('n=100, hardcoded')
+        print('n=', n, ', hardcoded')
         
-        
-        # Initial space filling samples between [0, 1]
-        
+        # Space filling MM-samples between [0, 1]
         x_0 = self.optimallhc(n)
-        
-        # Initial random samples within a circle
-        # x_0 = np.ones((n, self.k)) * np.nan
         x_row = np.ones((self.k,)) * np.nan
         
         for iter, row in enumerate(x_0):
@@ -60,67 +53,12 @@ class samplingplan():
             
             x_0[iter, :] = x_row
             
-        # fig = plt.figure()
-        # plt.plot(x_0[:, 0], x_0[:, 1], 'bx')
-            
-        def func(x_rav, x_fix):
-            ''' computes the minimum distance between all points in the dataset, objective function'''
-            
-            x_mat = x_rav.reshape(-1, self.k)
-            if x_fix is not None:
-                x_full = np.append(x_mat, x_fix)
-            
-            else:
-                x_full = x_mat  # No fixed values in first iteration!
-                
-            n_ro, n_co = x_full.shape
-            
-            len_obj = n_ro * (n_ro - 1) / 2
-            obj_v = np.ones((int(len_obj), )) * np.nan
-            
-            k = 0
-            for i in np.arange(n_ro):
-                for j in np.arange(i+1, n_ro):
-                        obj_v[k] = np.linalg.norm(x_full[i, :] - x_full[j, :])
-                        k += 1
-            
-            min_obj = np.min(obj_v)
-            
-            # fig = plt.figure()
-            # ax = fig.add_subplot(111, projection='3d')            
-            # ax.plot(x_full[:, 0], x_full[:, 1], 'ro')
-            
-            assert ~ np.isnan(min_obj)
-            return - min_obj**2
-        
-        # One constraint per point - i.e. inside the circle
-        cons = []
-        for i in np.arange(n):
-            cons.append({'type': 'ineq', 'fun': lambda x: ml - np.linalg.norm(x[self.k * i: self.k * i + self.k])})
-        
-        # cons = tuple(cons)
-        func_lambda = lambda x: func(x, self.x_fix)
-        bounds = [(- 1, 1) for i in range(len(np.ravel(x_0)))]
-        # res = opt.minimize(func_lambda, np.ravel(x_0), method='SLSQP', constraints=cons, bounds=bounds)
-        # pdb.set_trace()
-        # res =
-        # res.success = True
-        # res.x = x
-        
-        # if res.success:
-        # xres = res.x.reshape(-1, self.k)
         fig = plt.figure()
-        # ax = fig.add_subplot(111, projection='3d') 
         ax = fig.add_subplot(111)
-        # ax.plot(xres[:, 0], xres[:, 1], 'ro', label='Optimized')
-        ax.plot(x_0[:, 0], x_0[:, 1], 'bx', label='Initial')
+        ax.plot(x_0[:, 0], x_0[:, 1], 'bx', label='Final')
         # plt.legend()
         pdb.set_trace()
-        return xres
-            
-        # else:
-            # print('optimization for sampling within hypersphere failed')
-            # raise NotImplementedError  # Do smth?
+        return x_0
             
     def grid(self, n):
         ''' generates ordered sampling points, grid-like
