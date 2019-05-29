@@ -22,20 +22,47 @@ class samplingplan():
         
     def sphere_opt(self, n):
         ''' Sample n random optimal spacefilling samples within a circle of dimension k and radius 1 centered at origo. Also, already picked values on position self.x_fix are also considered
-        source: http://6degreesoffreedom.co/circle-random-sampling/'''
+        source: http://6degreesoffreedom.co/circle-random-sampling/, https://en.wikipedia.org/wiki/N-sphere'''
         
         # Assume R = 1, and that the circle is centered around origo
         R = 1
         ml = 1
         
-        # Initial random samples within a circle
-        x_0 = np.ones((n, self.k))
-        for iter, row in enumerate(x_0):
-            x_row = np.random.sample((self.k, ))
-            x_row[:-2] = np.sin(x_row[:-2] * 2 * np.pi)
-            x_row[-1] = R * x_row[-1] ** (1 / n)
-            x_0[iter, :] = x_row
+        n = 20
+        # print('n=100, hardcoded')
         
+        
+        # Initial space filling samples between [0, 1]
+        
+        x_0 = self.optimallhc(n)
+        
+        # Initial random samples within a circle
+        # x_0 = np.ones((n, self.k)) * np.nan
+        x_row = np.ones((self.k,)) * np.nan
+        
+        for iter, row in enumerate(x_0):
+            # x_rand = np.random.uniform(size=self.k)
+            x_rand = row
+            if self.k == 1:
+                print('Sphere sampling not implemented for 1d')
+                raise ValueError
+            
+            # Last random is the radius, r
+            r = R * x_rand[0] ** (1 / self.k)
+            x_rand[1] = x_rand[1] * 2 * np.pi  # to radians
+                
+            if self.k > 1:
+                x_row[0] = r * np.cos(x_rand[1])  # x1
+                x_row[1] = r * np.sin(x_rand[1])  # x2
+                
+            if self.k > 2:
+                raise NotImplementedError
+            
+            x_0[iter, :] = x_row
+            
+        # fig = plt.figure()
+        # plt.plot(x_0[:, 0], x_0[:, 1], 'bx')
+            
         def func(x_rav, x_fix):
             ''' computes the minimum distance between all points in the dataset, objective function'''
             
@@ -64,27 +91,36 @@ class samplingplan():
             # ax.plot(x_full[:, 0], x_full[:, 1], 'ro')
             
             assert ~ np.isnan(min_obj)
-            return - min_obj
+            return - min_obj**2
         
         # One constraint per point - i.e. inside the circle
         cons = []
         for i in np.arange(n):
-            cons.append({'type': 'ineq', 'fun': lambda x: ml - np.linalg.norm(x[self.k * i: self.k - 1])})
-            
-        func_lambda = lambda x: func(x, self.x_fix)
-        res = opt.minimize(func_lambda, np.ravel(x_0), method='SLSQP', constraints=cons)
+            cons.append({'type': 'ineq', 'fun': lambda x: ml - np.linalg.norm(x[self.k * i: self.k * i + self.k])})
         
-        if res.success:
-            xres = res.x.reshape(-1, self.k)
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')            
-            ax.plot(xres[:, 0], xres[:, 1], 'ro')
-            pdb.set_trace()
-            return xres
+        # cons = tuple(cons)
+        func_lambda = lambda x: func(x, self.x_fix)
+        bounds = [(- 1, 1) for i in range(len(np.ravel(x_0)))]
+        # res = opt.minimize(func_lambda, np.ravel(x_0), method='SLSQP', constraints=cons, bounds=bounds)
+        # pdb.set_trace()
+        # res =
+        # res.success = True
+        # res.x = x
+        
+        # if res.success:
+        # xres = res.x.reshape(-1, self.k)
+        fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d') 
+        ax = fig.add_subplot(111)
+        # ax.plot(xres[:, 0], xres[:, 1], 'ro', label='Optimized')
+        ax.plot(x_0[:, 0], x_0[:, 1], 'bx', label='Initial')
+        # plt.legend()
+        pdb.set_trace()
+        return xres
             
-        else:
-            print('optimization for sampling within hypersphere failed')
-            raise NotImplementedError  # Do smth?
+        # else:
+            # print('optimization for sampling within hypersphere failed')
+            # raise NotImplementedError  # Do smth?
             
     def grid(self, n):
         ''' generates ordered sampling points, grid-like
@@ -154,8 +190,12 @@ class samplingplan():
                              optimizer
                 Iterations - number of generations the evolutionary operation
                              optimizer is run for
+                             
                 Note: high values for the two inputs above will ensure high quality
                 hypercubes, but the search will take longer.
+                
+                Minpoints  - Minimum number of points in optimization loop when fixed x-values are used
+                
                 generation - if set to True, the LHC will be generated. If 'False,' the algorithm will check for an existing plan before generating.
 
             Output:
@@ -176,16 +216,16 @@ class samplingplan():
                 #     print('SP not found on disk, generating it now.')
 
             #list of qs to optimise Phi_q for
-            # q = [1,2,5,10,20,50,100]
-            q = [2,5,10]
+            q = [1,2,5,10,20,50,100]
+            # q = [2,5,10]
 
             #Set the distance norm to rectangular for a faster search. This can be
             #changed to p=2 if the Euclidean norm is required.
-            p = 1
+            p = 2
 
             #we start with a random Latin hypercube
             XStart = self.rlh(n)
-
+            
             X3D = np.zeros((n,self.k,len(q)))
             #for each q optimize Phi_q
             for i in range(len(q)):
@@ -193,7 +233,7 @@ class samplingplan():
                 X3D[:,:,i] = self.mmlhs(XStart, population, iterations, q[i])
 
             #sort according to the Morris-Mitchell criterion
-            Index = self.mmsort(X3D,p)
+            Index = self.mmsort(X3D, p)
             # print(('Best_lh_found_using_q = %d \n' %q[Index[1]]))
 
             #and the Latin hypercube with the best space-filling properties is
@@ -315,7 +355,7 @@ class samplingplan():
 
         return X_best
 
-    def mmphi(self,X,q=2,p=1):
+    def mmphi(self, X, q=2, p=1):
 
         """
         Calculates the sampling plan quality criterion of Morris and Mitchell
@@ -330,9 +370,15 @@ class samplingplan():
         """
         #calculate the distances between all pairs of
         #points (using the p-norm) and build multiplicity array J
-        J,d = self.jd(X,p)
+        
+        # Add the fixed points for the evaluation of the quality
+        if self.x_fix is not None:
+            X = np.append(X, self.x_fix, axis=0)
+        
+        J, d = self.jd(X, p)
+        
         #the sampling plan quality criterion
-        Phiq = (np.sum(J*(d**(-q))))**(1.0/q)
+        Phiq = (np.sum(J * ( d**(-q))))**(1.0 / q)
         return Phiq
 
     def jd(self, X,p=1):
