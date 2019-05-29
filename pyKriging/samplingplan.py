@@ -24,41 +24,63 @@ class samplingplan():
         ''' Sample n random optimal spacefilling samples within a circle of dimension k and radius 1 centered at origo. Also, already picked values on position self.x_fix are also considered
         source: http://6degreesoffreedom.co/circle-random-sampling/, https://en.wikipedia.org/wiki/N-sphere'''
         
+        def rec_to_circ(X):
+            ''' Takes rectangular LHS and moves it to spherical 
+            X   -   np.array of numbers between 0 and 1
+            
+            Out:
+            
+            x_circ  -   Same as input array but transformed to spherical coord
+            '''
+            
+            n = X.shape[0]
+            x_row = np.ones((self.k,)) * np.nan
+            rand_v = np.ones((self.k,)) * np.nan
+            x_circ = np.ones((n, self.k)) * np.nan
+            
+            # For the fixed points
+            for iter, rand_v in enumerate(X):
+                
+                if self.k == 1:
+                    print('Sphere sampling not implemented for 1d')
+                    raise ValueError
+                
+                # First random is the radius, r
+                r = R * rand_v[0] ** (1 / self.k)  # to radius
+                rand_v[1] = rand_v[1] * 2 * np.pi  # to radians
+                    
+                if self.k > 1:
+                    x_row[0] = r * np.cos(rand_v[1])  # x1
+                    x_row[1] = r * np.sin(rand_v[1])  # x2
+                    
+                if self.k > 2:
+                    raise NotImplementedError
+                
+                x_circ[iter, :] = x_row
+            return x_circ
+            
         # Assume R = 1, and that the circle is centered around origo
         R = 1
-        n = 20
-        print('n=', n, ', hardcoded')
+        # n = 20
+        # self.x_fix = self.rlh(6)
+        # print('n=', n, ', hardcoded')
         
         # Space filling MM-samples between [0, 1]
-        x_0 = self.optimallhc(n)
-        x_row = np.ones((self.k,)) * np.nan
+        x_lhc = self.optimallhc(n, population=30, iterations=30, generation=True)
+        x_circ = rec_to_circ(x_lhc)
         
-        for iter, row in enumerate(x_0):
-            # x_rand = np.random.uniform(size=self.k)
-            x_rand = row
-            if self.k == 1:
-                print('Sphere sampling not implemented for 1d')
-                raise ValueError
+        # if self.x_fix is not None:
+        #     x_fix = rec_to_circ(self.x_fix)
             
-            # Last random is the radius, r
-            r = R * x_rand[0] ** (1 / self.k)
-            x_rand[1] = x_rand[1] * 2 * np.pi  # to radians
-                
-            if self.k > 1:
-                x_row[0] = r * np.cos(x_rand[1])  # x1
-                x_row[1] = r * np.sin(x_rand[1])  # x2
-                
-            if self.k > 2:
-                raise NotImplementedError
-            
-            x_0[iter, :] = x_row
-            
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(x_0[:, 0], x_0[:, 1], 'bx', label='Final')
-        # plt.legend()
-        pdb.set_trace()
-        return x_0
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111)
+        # if self.x_fix is not None:
+        #     ax.plot(x_fix[:, 0], x_fix[:, 1], 'bx', label='Fixed')
+        # ax.plot(x_circ[:, 0], x_circ[:, 1], 'bo', label='Final')
+        # xc = np.linspace(0, 2 * np.pi, num=300)
+        # ax.plot(np.cos(xc), np.sin(xc), 'k', label='Circle')
+        # # plt.legend()
+        return x_circ
             
     def grid(self, n):
         ''' generates ordered sampling points, grid-like
@@ -234,26 +256,34 @@ class samplingplan():
 
         """
         X_pert = X.copy()
-        [n,k] = np.shape(X_pert)
+        if self.x_fix is not None:
+            n_orig = X_pert.shape[0]
+            X_pert = np.append(X_pert, self.x_fix, axis=0)
+            # X_pert = np.append(X_pert, self.rlh(self.x_fix.shape[0]), axis=0)
+        
+        [n, k] = np.shape(X_pert)
 
-        for pert_count in range(0,PertNum):
+        for pert_count in range(0, PertNum):
             col = int(m.floor(np.random.rand(1)*k))
 
-            #Choosing two distinct random points
+            # Choosing two distinct random points
             el1 = 0
             el2 = 0
             while el1 == el2:
-                el1 = int(m.floor(np.random.rand(1)*n))
-                el2 = int(m.floor(np.random.rand(1)*n))
+                el1 = int(m.floor(np.random.rand(1) * n))
+                el2 = int(m.floor(np.random.rand(1) * n))
 
             #swap the two chosen elements
-            arrbuffer = X_pert[el1,col]
-            X_pert[el1,col] = X_pert[el2,col]
-            X_pert[el2,col] = arrbuffer
+            arrbuffer = X_pert[el1, col]
+            X_pert[el1, col] = X_pert[el2, col]
+            X_pert[el2, col] = arrbuffer
+        
+        if self.x_fix is not None:
+            return X_pert[:n_orig, :]
+        else:
+            return X_pert
 
-        return X_pert
-
-    def mmlhs(self, X_start, population,iterations, q):
+    def mmlhs(self, X_start, population, iterations, q):
         """
         Evolutionary operation search for the most space filling Latin hypercube
         of a certain size and dimensionality. There is no need to call this
@@ -267,10 +297,16 @@ class samplingplan():
         X_best = X_s
 
         Phi_best = self.mmphi(X_best)
-
+        
+        # Initial value of t
+        X_pt = X_best.copy()
+        X_pt[0] = X_pt[0] * 1.01
+        phi_t = self.mmphi(X_pt)
+        t = - (np.abs(phi_t - Phi_best)) / np.log(0.99)
+        
         leveloff = m.floor(0.85 * iterations)
 
-        for it in range(0,iterations):
+        for it in range(0, iterations):
             if it < leveloff:
                 mutations = int(round(1+(0.5*n-1)*(leveloff-it)/(leveloff-1)))
             else:
@@ -278,18 +314,24 @@ class samplingplan():
 
             X_improved = X_best
             Phi_improved = Phi_best
-
+            
             for offspring in range(0, population):
                 X_try = self.perturb(X_best, mutations)
-                Phi_try = self.mmphi(X_try, q)
-
-                if Phi_try < Phi_improved:
+                Phi_try = self.mmphi(X_try, q=q)
+                
+                # prob constraint in order to avoid local optima
+                prob = np.exp(-(Phi_try - Phi_improved) / t)
+                ri = np.random.rand()
+                
+                if Phi_try < Phi_improved or ri < prob:
                     X_improved = X_try
                     Phi_improved = Phi_try
-
+            
+            # Among all iterations
             if Phi_improved < Phi_best:
                 X_best = X_improved
                 Phi_best = Phi_improved
+                t = 0.9 * t
 
         return X_best
 
@@ -310,16 +352,17 @@ class samplingplan():
         #points (using the p-norm) and build multiplicity array J
         
         # Add the fixed points for the evaluation of the quality
+        
         if self.x_fix is not None:
             X = np.append(X, self.x_fix, axis=0)
         
         J, d = self.jd(X, p)
         
         #the sampling plan quality criterion
-        Phiq = (np.sum(J * ( d**(-q))))**(1.0 / q)
+        Phiq = (np.sum(J * (d**(-q))))**(1.0 / q)
         return Phiq
 
-    def jd(self, X,p=1):
+    def jd(self, X, p=1):
         """
         Computes the distances between all pairs of points in a sampling plan
         X using the p-norm, sorts them in ascending order and removes multiple occurences.
@@ -348,10 +391,9 @@ class samplingplan():
     #                d[((i-1)*n - (i-1)*i/2 + j - i  )] = np.linalg.norm((X[i,:] - X[j,:]),2)
 
         #an alternative way of the above loop
-        list = [(i,j) for i in range(n-1) for j in range(i+1,n)]
-        for k,l in enumerate(list):
+        list = [(i, j) for i in range(n-1) for j in range(i+1,n)]
+        for k, l in enumerate(list):
             d[k] = np.linalg.norm((X[l[0],:]-X[l[1],:]),p)
-
 
         #remove multiple occurences
         distinct_d, J = np.unique(d, return_counts=True)
