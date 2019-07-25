@@ -58,7 +58,29 @@ class testfunctions():
         for i in range(X.shape[0]):
             y = np.append(y, (np.sum((X[i]-offset)**3)**(1/3.0)))
         return y
-
+        
+    def griewank(self, X):
+        '''
+        as defined https://en.wikipedia.org/wiki/Griewank_function
+        '''
+        # If not a vector of points, but one point only!
+        if np.isscalar(X[0]):
+            X = [X]
+        
+        fun_val = []
+        for point in X:
+            
+            sum1 = 0
+            sum2 = 0
+            for ind, elem in enumerate(point):
+                sum1 += elem ** 2
+                sum2 += np.cos(elem / np.sqrt(ind + 1))
+            
+            val = 1 + sum1 / 4000 - sum2
+            fun_val.append(val)
+        return fun_val
+        
+        
     def branin(self, X):
         
         # try:

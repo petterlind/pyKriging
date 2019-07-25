@@ -51,7 +51,7 @@ class regression_kriging(matrixops):
         self.thetamax = 50
         self.pmin = 1.9
         self.pmax = 2.1
-        self.Lambda_min = 0.1
+        self.Lambda_min = 1e-3
         self.Lambda_max = 1
                     # regression order
 
@@ -83,8 +83,7 @@ class regression_kriging(matrixops):
 
         else:
             self.history['pointData'] = None
-
-
+            
         matrixops.__init__(self)
 
     def normX(self, X):
@@ -307,7 +306,7 @@ class regression_kriging(matrixops):
 
         Checks if MLE(theta, p) < -nlog(VAR(y))
 
-        If true it indicates that the loglikelihood function is monotonic and that the fit might be bad.
+        If true it indicates that the loglikelihood function is monotonic and that the fit might be bad. Altough, assuming OKG, UKG have a more complex behaviour!
         '''
 
         check = self.SigmaSqr < - self.n * np.log(np.var(self.y))
@@ -1090,7 +1089,7 @@ class regression_kriging(matrixops):
         if RMSD < 0: #  or RMSD > 1: #  or R_sq > 1:  # R_sq can be less than zero! - fits data worse than horizontal line.
             raise ValueError('Something of with error estimate!')
 
-        return R_sq, RMSD  # In percentage!
+        return R_sq, RMSD[0]  # In percentage!
 
     def snapshot(self):
         '''

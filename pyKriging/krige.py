@@ -9,72 +9,167 @@ import matplotlib
 import pylab
 import seaborn as sns
 
-        """
-        This function determines the BLUP parameters and evaluates the reduced
-        likelihood function for the given autocorrelation parameters theta.
+from mpl_toolkits.mplot3d import axes3d
+from pyKriging import samplingplan
+import inspyred
+from random import Random
+from time import time
+from inspyred import ec
+import math as m
+import pdb
 
-        Maximizing this function wrt the autocorrelation parameters theta is
-        equivalent to maximizing the likelihood of the assumed joint Gaussian
-        distribution of the observations y evaluated onto the design of
-        experiments X.
 
-        Parameters
-        ----------
-        theta: list(n_comp), optional
-            - An array containing the autocorrelation parameters at which the
-              Gaussian Process model parameters should be determined.
+class kriging(matrixops):
+    def __init__(self, X, y, testfunction=None, name='', testPoints=None, **kwargs):
+        self.X = copy.deepcopy(X)
+        self.y = copy.deepcopy(y)
+        self.testfunction = testfunction
+        self.name = name
+        self.n = self.X.shape[0]
+        self.k = self.X.shape[1]
+        self.theta = np.ones(self.k)
+        self.pl = np.ones(self.k) * 2.
+        self.sigma = 0
+        self.normRange = []
+        self.ynormRange = []
+        self.normalizeData()
+        self.sp = samplingplan.samplingplan(self.k)
+        #self.updateData()
+        #self.updateModel()
 
-        Returns
-        -------
-        reduced_likelihood_function_value: real
-            - The value of the reduced likelihood function associated to the
-              given autocorrelation parameters theta.
+        self.thetamin = 1e-5
+        self.thetamax = 100
+        self.pmin = 1
+        self.pmax = 2
 
-        par: dict()
-            - A dictionary containing the requested Gaussian Process model
-              parameters:
+        # Setup functions for tracking history
+        self.history = {}
+        self.history['points'] = []
+        self.history['neglnlike'] = []
+        self.history['theta'] = []
+        self.history['p'] = []
+        self.history['rsquared'] = [0]
+        self.history['adjrsquared'] = [0]
+        self.history['chisquared'] = [1000]
+        self.history['lastPredictedPoints'] = []
+        self.history['avgMSE'] = []
+        if testPoints:
+            self.history['pointData'] = []
+            self.testPoints = self.sp.rlh(testPoints)
 
-            sigma2
-            Gaussian Process variance.
-            beta
-            Generalized least-squares regression weights for
-            Universal Kriging or for Ordinary Kriging.
-            gamma
-            Gaussian Process weights.
-            C
-            Cholesky decomposition of the correlation matrix [R].
-            Ft
-            Solution of the linear equation system : [R] x Ft = F
-            G
-            QR decomposition of the matrix Ft.
-        """
-        
-        # Initialize output
-        reduced_likelihood_function_value = - np.inf
-        par = {}
-        # Set up R
-        MACHINE_EPSILON = np.finfo(np.double).eps
-        nugget = 10.*MACHINE_EPSILON
-        if self.name == 'MFK':
-            if self._lvl != self.nlvl:
-                # in the case of multi-fidelity optimization
-                # it is very probable that lower-fidelity correlation matrix
-                # becomes ill-conditionned 
-                nugget = 10.* nugget 
-        noise = 0.
-        tmp_var = theta
-        if self.name == 'MFK':
-            if self.options['eval_noise']:
-                theta = tmp_var[:-1]
-                noise = tmp_var[-1]
-    
-        r = self.options['corr'](theta, self.D).reshape(-1, 1)
-        
-        R = np.eye(self.nt) * (1. + nugget + noise)
-        R[self.ij[:, 0], self.ij[:, 1]] = r[:, 0]
-        R[self.ij[:, 1], self.ij[:, 0]] = r[:, 0]
-        
-        # Cholesky decomposition of R
+            for point in self.testPoints:
+                testPrimitive = {}
+                testPrimitive['point'] = point
+                if self.testfunction:
+                    testPrimitive['actual'] = self.testfunction(point)[0]
+                else:
+                    testPrimitive['actual'] = None
+                testPrimitive['predicted'] = []
+                testPrimitive['mse'] = []
+                testPrimitive['gradient'] = []
+                self.history['pointData'].append(testPrimitive)
+
+        else:
+            self.history['pointData'] = None
+
+
+        matrixops.__init__(self)
+
+    def normX(self, X):
+        '''
+        :param X: An array of points (self.k long) in physical world units
+        :return X: An array normed to our model range of [0,1] for each dimension
+        '''
+        X = copy.deepcopy(X)
+        if type(X) is np.float64:
+            # print self.normRange
+            return np.array( (X - self.normRange[0][0]) / float(self.normRange[0][1] - self.normRange[0][0]) )
+        else:
+            for i in range(self.k):
+                X[i] = (X[i] - self.normRange[i][0]) / float(self.normRange[i][1] - self.normRange[i][0])
+        return X
+
+    def inversenormX(self, X):
+        '''
+
+        :param X: An array of points (self.k long) in normalized model units
+        :return X : An array of real world units
+        '''
+        X = copy.deepcopy(X)
+        for i in range(self.k):
+            X[i] = (X[i] * float(self.normRange[i][1] - self.normRange[i][0] )) + self.normRange[i][0]
+        return X
+
+    def normy(self, y):
+        '''
+        :param y: An array of observed values in real-world units
+        :return y: A normalized array of model units in the range of [0,1]
+        '''
+        return (y - self.ynormRange[0]) / (self.ynormRange[1] - self.ynormRange[0])
+
+    def inversenormy(self, y):
+        '''
+        :param y: A normalized array of model units in the range of [0,1]
+        :return: An array of observed values in real-world units
+        '''
+        return (y * (self.ynormRange[1] - self.ynormRange[0])) + self.ynormRange[0]
+
+    def normalizeData(self):
+        '''
+        This function is called when the initial data in the model is set.
+        We find the max and min of each dimension and norm that axis to a range of [0,1]
+        '''
+        for i in range(self.k):
+            self.normRange.append([min(self.X[:, i]), max(self.X[:, i])])
+
+        # print self.X
+        for i in range(self.n):
+            self.X[i] = self.normX(self.X[i])
+
+        self.ynormRange.append(min(self.y))
+        self.ynormRange.append(max(self.y))
+
+        for i in range(self.n):
+            self.y[i] = self.normy(self.y[i])
+
+    def addPoint(self, newX, newy, norm=True):
+        '''
+        This add points to the model.
+        :param newX: A new design vector point
+        :param newy: The new observed value at the point of X
+        :param norm: A boolean value. For adding real-world values, this should be True. If doing something in model units, this should be False
+        '''
+        if norm:
+            newX = self.normX(newX)
+            newy = self.normy(newy)
+
+        self.X = np.append(self.X, [newX], axis=0)
+        self.y = np.append(self.y, newy)
+        self.n = self.X.shape[0]
+        self.updateData()
+        while True:
+            try:
+                self.updateModel()
+            except:
+                self.train()
+            else:
+                break
+
+    def update(self, values):
+        '''
+        The function sets new hyperparameters
+        :param values: the new theta and p values to set for the model
+        '''
+        for i in range(self.k):
+            self.theta[i] = values[i]
+        for i in range(self.k):
+            self.pl[i] = values[i + self.k]
+        self.updateModel()
+
+    def updateModel(self):
+        '''
+        The function rebuilds the Psi matrix to reflect new data or a change in hyperparamters
+        '''
         try:
             self.updatePsi()
         except Exception as err:
@@ -241,25 +336,78 @@ import seaborn as sns
 
         - *max_generations* -- the number of generations allowed for no change in fitness (default 10)
 
-        
-        Q, G = linalg.qr(Ft, mode='economic')
-        sv = linalg.svd(G, compute_uv=False)
-        rcondG = sv[-1] / sv[0]
-        if rcondG < 1e-10:
-            # Check F
-            sv = linalg.svd(self.F, compute_uv=False)
-            condF = sv[0] / sv[-1]
-            if condF > 1e15:
-                raise Exception("F is too ill conditioned. Poor combination "
-                                "of regression model and observations.")
-        
+        """
+        max_generations = args.setdefault('max_generations', 10)
+        previous_best = args.setdefault('previous_best', None)
+        max_evaluations = args.setdefault('max_evaluations', 30000)
+        current_best = np.around(max(population).fitness, decimals=4)
+        if previous_best is None or previous_best != current_best:
+            args['previous_best'] = current_best
+            args['generation_count'] = 0
+            return False or (num_evaluations >= max_evaluations)
+        else:
+            if args['generation_count'] >= max_generations:
+                return True
             else:
-                # Ft is too ill conditioned, get out (try different theta)
-                return reduced_likelihood_function_value, par
+                args['generation_count'] += 1
+                return False or (num_evaluations >= max_evaluations)
+
+    def train(self, optimizer='pso'):
+        '''
+        The function trains the hyperparameters of the Kriging model.
+        :param optimizer: Two optimizers are implemented, a Particle Swarm Optimizer or a GA
+        '''
+        # First make sure our data is up-to-date
+        self.updateData() # Sets all the distances!
         
-        # Bouhlel
-        Yt = linalg.solve_triangular(C, self.y_norma, lower=True)
-        beta = linalg.solve_triangular(G, np.dot(Q.T, Yt))
+        # Establish the bounds for optimization for theta and p values
+        lowerBound = [self.thetamin] * self.k + [self.pmin] * self.k
+        upperBound = [self.thetamax] * self.k + [self.pmax] * self.k
+
+        #Create a random seed for our optimizer to use
+        rand = Random()
+        rand.seed(int(time()))
+
+        # If the optimizer option is PSO, run the PSO algorithm
+        if optimizer == 'pso':
+            ea = inspyred.swarm.PSO(Random())
+            ea.terminator = self.no_improvement_termination
+            ea.topology = inspyred.swarm.topologies.ring_topology
+            # ea.observer = inspyred.ec.observers.stats_observer
+            final_pop = ea.evolve(generator=self.generate_population,
+                                  evaluator=self.fittingObjective,
+                                  pop_size=300,
+                                  maximize=False,
+                                  bounder=ec.Bounder(lowerBound, upperBound),
+                                  max_evaluations=30000,
+                                  neighborhood_size=20,
+                                  num_inputs=self.k)
+            # Sort and print the best individual, who will be at index 0.
+            final_pop.sort(reverse=True)
+
+        # If not using a PSO search, run the GA
+        elif optimizer == 'ga':
+            ea = inspyred.ec.GA(Random())
+            ea.terminator = self.no_improvement_termination
+            final_pop = ea.evolve(generator=self.generate_population,
+                                  evaluator=self.fittingObjective,
+                                  pop_size=300,
+                                  maximize=False,
+                                  bounder=ec.Bounder(lowerBound, upperBound),
+                                  max_evaluations=30000,
+                                  num_elites=10,
+                                  mutation_rate=.05)
+
+        # This code updates the model with the hyperparameters found in the global search, but first it controlls the minima, if it fails it takes the next value in the loop.
+        for entry in final_pop:
+            newValues = entry.candidate
+            preLOP = copy.deepcopy(newValues)
+            locOP_bounds = []
+            for i in range(self.k):
+                locOP_bounds.append( [self.thetamin, self.thetamax] )
+
+            for i in range(self.k):
+                locOP_bounds.append( [self.pmin, self.pmax] )
 
             # Let's quickly double check that we're at the optimal value by running a quick local optimizaiton
             lopResults = minimize(self.fittingObjective_local, newValues, method='SLSQP', bounds=locOP_bounds, options={'disp': False})
