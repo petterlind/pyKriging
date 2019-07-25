@@ -5,7 +5,6 @@ from scipy.optimize import minimize
 from .matrixops import matrixops
 import copy
 from matplotlib import pyplot as plt
-import pylab
 from mpl_toolkits.mplot3d import axes3d
 from pyKriging.samplingplan import samplingplan
 import inspyred
@@ -14,6 +13,10 @@ from time import time
 from inspyred import ec
 import math as m
 from matplotlib import cm
+import matplotlib
+import seaborn as sns
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import animation
 import pdb
 
 class regression_kriging(matrixops):
@@ -23,7 +26,11 @@ class regression_kriging(matrixops):
         self.testfunction = testfunction
         self.name = name
         self.n = self.X.shape[0]
-        self.k = self.X.shape[1]
+        try:
+            self.k = self.X.shape[1]
+        except:
+            self.k = 1
+            self.X = self.X.reshape(-1, 1)
         self.theta = np.ones(self.k)
         self.pl = np.ones(self.k) * 2.
         self.Lambda = 0
@@ -207,6 +214,19 @@ class regression_kriging(matrixops):
             X = self.normX(X)
             
         return self.inversenormy(self.predict_normalized(X))
+        
+    def predict_prior(self, X, norm=True):
+        '''
+        This function returns the prediction of the stochastic process at a coordinate(0)
+        :param X: Design variable to evaluate
+        :return: Returns the 'real world' predicted value
+        '''
+        X = copy.deepcopy(X)
+        
+        if norm:
+            X = self.normX(X)
+            
+        return self.inversenormy(self.predict_normalized(X, only_prior=True))
 
     def predict_var(self, X, norm=True):
         '''
@@ -502,6 +522,8 @@ class regression_kriging(matrixops):
         return f
         
     def plot_trend(self):
+        
+        matplotlib.rcParams['font.family'] = "Times New Roman"
         X, Y = np.meshgrid(np.arange(0, 1, 0.05), np.arange(0, 1, 0.05))
         zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
@@ -513,6 +535,7 @@ class regression_kriging(matrixops):
         
         fig = plt.figure()
         ax = fig.gca(projection='3d')
+        
 
         # Plot the surface.
         ax.plot_surface(X, Y, Z, cmap=cm.coolwarm)
@@ -520,9 +543,9 @@ class regression_kriging(matrixops):
         
         ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y))
         
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
+        ax.set_xlabel('X_1')
+        ax.set_ylabel('X_2')
+        ax.set_zlabel('G(X_1, X_2)')
         plt.show()
         
     def plot_rad(self):
@@ -550,13 +573,15 @@ class regression_kriging(matrixops):
         ax.set_zlabel('Z')
         plt.show()
 
-    def plot(self, fig=None, ax=None, labels=False, show=True, plot_int=None):
+    def plot(self, fig=None, ax=None, labels=False, show=True, plot_int=None, animate=False, only_points=False):
         '''
         This function plots 2D and 3D models
         :param labels:
         :param show: If True, the plots are displayed at the end of this call. If False, plt.show() should be called outside this function
         :return:
+        https://stackoverflow.com/questions/13316397/matplotlib-animation-no-moviewriters-available
         '''
+
         if self.k == 3:
             import mayavi.mlab as mlab
 
@@ -596,8 +621,8 @@ class regression_kriging(matrixops):
         if self.k == 2:
             
             if fig is None:
-                fig = pylab.figure(figsize=(8, 6))
-                
+                fig = plt.figure(figsize=(8, 6))
+            
             samplePoints = list(zip(*self.X))
             # Create a set of data to plot
             plotgrid = 50
@@ -611,16 +636,16 @@ class regression_kriging(matrixops):
                 x = np.linspace(xmin, xmax, num=plotgrid)
                 y = np.linspace(ymin, ymax, num=plotgrid)
             
-            
             X, Y = np.meshgrid(x, y)
             # Predict based on the optimized results
-            zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
-            Z = zs.reshape(X.shape)
-            # Z = (Z*(self.ynormRange[1]-self.ynormRange[0]))+self.ynormRange[0]
+            if not only_points:
+                zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
+                Z = zs.reshape(X.shape)
+                # Z = (Z*(self.ynormRange[1]-self.ynormRange[0]))+self.ynormRange[0]
 
-            #Calculate errors
-            zse = np.array([self.predict_var([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
-            Ze = zse.reshape(X.shape)
+                #Calculate errors
+                zse = np.array([self.predict_var([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
+                Ze = zse.reshape(X.shape)
 
             spx = (self.X[:, 0] * (self.normRange[0][1] - self.normRange[0][0])) + self.normRange[0][0]
             spy = (self.X[:, 1] * (self.normRange[1][1] - self.normRange[1][0])) + self.normRange[1][0]
@@ -643,7 +668,7 @@ class regression_kriging(matrixops):
             #     # Setup the truth function
             
             if self.testfunction is not None:
-                zt = self.testfunction(np.array(list(zip(np.ravel(X), np.ravel(Y)))) )
+                zt = self.testfunction(np.array(list(zip(np.ravel(X), np.ravel(Y)))))
                 ZT = zt.reshape(X.shape)
             #     CS = pylab.contour(X, Y, ZT, contour_levels, colors='k', zorder=2)
 
@@ -658,20 +683,98 @@ class regression_kriging(matrixops):
             # pylab.plot(spx, spy, 'ow', zorder=3)
             # pylab.colorbar()
             if ax is None:
-                ax = fig.add_subplot(111, projection='3d')
+                # ax = fig.add_subplot(111, projection='3d')
+                ax = Axes3D(fig)
+                matplotlib.rcParams['font.family'] = "Times New Roman"
+                plt.style.use('seaborn-bright')
             # ax = fig.add_subplot(212, projection='3d')
             # fig = plt.gcf()
             #ax = fig.gca(projection='3d')
-            if self.testfunction is not None:
-                Real = ax.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet', label='Real')
             
             
-            Approx = ax.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Approx')
+            if animate:
+                def init():
+                    ax.set_xlim([0, 1])
+                    ax.set_ylim([0, 1])
+                    ax.set_zlim([0, 250])
+                    ax.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
+                    ax.scatter(spx, spy, self.inversenormy(self.y), color='k', label='Experiments')
+                    ax.legend(prop={'size': 20})
+                    if self.testfunction is not None:
+                        ax.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet')
+                    ax.set_xlabel('$X_1$')
+                    ax.set_ylabel('$X_2$')
+                    ax.set_zlabel('$\mathbf{G}(X_1, X_2)$')
+                    
+                    # ax.legend()
+                    return fig,
+
+                def animate(i):
+                    ax.view_init(elev=10., azim=i)
+                    return fig,
+                    
+                # Animate
+                anim = animation.FuncAnimation(fig, animate, init_func=init,
+                                   frames=360, interval=20, blit=True)
+                # Save
+                anim.save(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\animation.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+                
+                
+
+                fig2 = plt.figure(figsize=(8, 6))
+                ax2 = Axes3D(fig2)
+                ax2.set_xlim([0, 1])
+                ax2.set_ylim([0, 1])
+                ax2.set_zlim([0, 250])
+                ax2.scatter(spx, spy, self.inversenormy(self.y), color='k', label='Experiments')
+                if not only_points:
+                    ax2.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
+                    ax2.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet')
+                ax2.legend(prop={'size': 20})
+                ax2.set_xlabel('$X_1$')
+                ax2.set_ylabel('$X_2$')
+                ax2.set_zlabel('$\mathbf{G}(X_1, X_2)$')
+                plt.savefig(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\figg' + str(self.X.shape[0]) + '.png', format='png', dpi=1000)
+                pdb.set_trace()
+            else:
+                
+                pass
+                # ax.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
+                # if self.testfunction is not None:
+                #     ax.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet')
+                # 
+                # ax.scatter(spx, spy, self.inversenormy(self.y), color='k', label='Experiments')
+                # 
+                # ax.set_xlabel('$X_1$')
+                # ax.set_ylabel('$X_2$')
+                # ax.set_zlabel('$\mathbf{G}(X_1, X_2)$')
+                # 
+                # ax.legend(prop={'size': 20})
+                
+                
             
-            ax.scatter(spx, spy, self.inversenormy(self.y), 'k')
-            # pylab.xlabel('test9')
-            # pylab.ylabel('test10')
-            pylab.title(self.reg)
+            
+            # fig1 = plt.figure(figsize=(8, 6))
+            # ax1 = Axes3D(fig1)
+            # ax1.scatter(spx, spy, self.inversenormy(self.y), color='k', label='Experiments')
+            # ax1.set_xlabel('$X_1$')
+            # ax1.set_ylabel('$X_2$')
+            # ax1.set_zlabel('$\mathbf{G}(X_1, X_2)$')
+            # ax1.legend(prop={'size': 20})
+            # plt.savefig(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\figp' + str(self.X.shape[0]) + '.png', format='png', dpi=1000)
+            
+            fig2 = plt.figure(figsize=(8, 6))
+            ax2 = Axes3D(fig2)
+            ax2.scatter(spx, spy, self.inversenormy(self.y), color='k', label='Experiments')
+            if not only_points:
+                ax2.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
+            ax2.legend(prop={'size': 20})
+            ax2.set_xlabel('$X_1$')
+            ax2.set_ylabel('$X_2$')
+            ax2.set_zlabel('$\mathbf{G}(X_1, X_2)$')
+            plt.savefig(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\figg' + str(self.X.shape[0]) + '.png', format='png', dpi=1000)
+            
+            # pylab.title(self.reg)
             # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
             # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
             
@@ -679,7 +782,32 @@ class regression_kriging(matrixops):
             # legend = ax.legend(loc='upper center', shadow=True)
             # legend = ax.legend(loc='upper center', shadow=True)
             if show:
-                pylab.show()
+                plt.show()
+                
+        if self.k == 1:
+            if fig is None:
+                fig = plt.figure(figsize=(8, 6))
+            
+            # Create a set of data to plot
+            plotgrid = 50
+            
+            if plot_int is None:
+                x_vec = np.linspace(self.normRange[0][0], self.normRange[0][1], num=plotgrid)
+                
+            else:
+                xmin, xmax = plot_int
+                x_vec = np.linspace(xmin, xmax, num=plotgrid)
+            
+            # Predict based on the optimized results
+            
+            y = np.array([self.predict(np.array(x).reshape(1,)) for x in np.ravel(x_vec)])
+            
+            plt.plot(x, y, 'ro')
+            # pylab.colorbar()
+            # pylab.plot(spx, spy,'ow')
+            # pylab.xlabel('test1')
+            # pylab.ylabel('test2')
+            # pylab.title(self.reg)
 
     def saveFigure(self, name=None):
         '''

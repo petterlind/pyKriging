@@ -294,7 +294,7 @@ class matrixops():
         if self.reg.lower() == 'constant' or self.reg.lower() == 'first' or self.reg.lower() == 'second' or self.reg.lower() == 'third' or self.reg.lower() == 'cubic' or self.reg.lower() == 'cubic2':
             
                 Ft = np.matmul(self.F.T, la.solve_triangular(self.U, la.solve_triangular(self.U.T, self.F), lower=True))
-                Yt = (np.matmul(self.F.T, la.solve_triangular(self.U, la.solve_triangular(self.U.T, self.y), lower=True)))
+                Yt = np.matmul(self.F.T, la.solve_triangular(self.U, la.solve_triangular(self.U.T, self.y), lower=True))
                 
                 # Check condition number on relevant matrices Ft and R
                 sv1, v1 = la.eig(Ft)
@@ -304,6 +304,7 @@ class matrixops():
                 if max_cond > 1 / Machine_eps:
                     print('R or Ft have bad condition! Bad hyperparameters')
                     raise ValueError
+                
                 
                 self.beta = la.solve(Ft, Yt)
                 # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(la.solve(self.U, la.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n
@@ -346,34 +347,75 @@ class matrixops():
         
         return f_v[~np.isnan(f_v)]
 
-    def predict_normalized(self, x_vec):
-        
+    def predict_normalized(self, x_vec, only_prior=False):
         # check if scalar
         f_v = np.array(np.nan)
         if np.isscalar(x_vec[0]):
             x_vec = [x_vec]  # So that the first element in list is x itself!
-            
-        for x in x_vec:
         
-            for i in range(self.n):
-                self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
+        if not only_prior:
+            for x in x_vec:
             
-            z = self.y - np.dot(self.F, self.beta)
+                for i in range(self.n):
+                    self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
+                
+                z = self.y - np.dot(self.F, self.beta)
+                
+                
+                a = la.solve_triangular(self.U, z, lower=True)
+                b = la.solve_triangular(self.U.T, a)
+                c = self.psi.T.dot(b)
+                
+                if self.reg != 'Bspline':
+                    f = self.mean_f(x, None).dot(self.beta) + c
+                elif self.reg == 'Bspline':
+                    f = self.Bspl.evaluate_single(x)[-1] + c
+                
+                f_v = np.append(f_v, f[0])
+                f_v[~np.isnan(f_v)]
+                
+            return f_v[~np.isnan(f_v)]
             
-            a = la.solve_triangular(self.U, z, lower=True)
-            b = la.solve_triangular(self.U.T, a)
+        elif only_prior:
+            f_v = np.array(np.nan)
+            # Set up correlation matrix for all posterior data
+            x_all = np.append(x_vec, self.X, axis=0)
+            n_all = x_all.shape[0]
+            n_new_x = x_vec.shape[0]
             
-            c = self.psi.T.dot(b)
+            Psi = np.zeros((n_all, n_all), dtype=np.float)
             
-            if self.reg != 'Bspline':
-                f = self.mean_f(x, None).dot(self.beta) + c
-            elif self.reg == 'Bspline':
-                f = self.Bspl.evaluate_single(x)[-1] + c
+            distance = np.zeros((n_all, n_all, self.k))
+            for i in range(n_all):
+                for j in range(i + 1, n_all):
+                    distance[i, j] = np.abs((x_all[i] - x_all[j]))
             
-            f_v = np.append(f_v, f[0])
-            f_v[~np.isnan(f_v)]
+            newPsi = np.exp(-np.sum(self.theta * np.power(distance, self.pl), axis=2))
+            Psi = np.triu(newPsi, 1)
+            Psi = Psi + Psi.T + eye(n_all) + eye(n_all) * (self.Lambda)
+            # U = la.cholesky(Psi)
+            # U = np.matrix(U.T)
             
-        return f_v[~np.isnan(f_v)]
+            for x in x_all:
+                f_v = np.append(f_v, self.mean_f(x, None).dot(self.beta))
+            f_v = f_v[~np.isnan(f_v)]
+            
+            # Sample from correlation matrix
+            star_r = n_all - n_new_x
+            
+            K_ss = Psi[star_r:, star_r:]
+            K_s = Psi[:star_r, star_r:]
+            
+            K = self.Psi
+            Sigma = K_ss - np.dot(K_s.T, np.linalg.solve(K, K_s))
+            pdb.set_trace()
+            L = la.cholesky(Sigma)
+            pdb.set_trace()
+            f_v += np.ravel(np.dot(L, np.random.normal(size=(n_new_x, 1))))  # U is Lower triangular (first part) of choleskey
+            
+            return f_v
+        else:
+            raise ValueError
 
     def predicterr_normalized(self, x):
         for i in range(self.n):

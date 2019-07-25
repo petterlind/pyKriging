@@ -5,7 +5,9 @@ from scipy.optimize import minimize
 from .matrixops import matrixops
 import copy
 from matplotlib import pyplot as plt
+import matplotlib
 import pylab
+import seaborn as sns
 
 from mpl_toolkits.mplot3d import axes3d
 from pyKriging import samplingplan
@@ -476,6 +478,9 @@ class kriging(matrixops):
         :param show: If True, the plots are displayed at the end of this call. If False, plt.show() should be called outside this function
         :return:
         '''
+        
+        matplotlib.rcParams['font.family'] = "Times New Roman"
+        
         if self.k == 3:
             import mayavi.mlab as mlab
 
@@ -511,9 +516,11 @@ class kriging(matrixops):
             if show:
                 mlab.show()
 
-        if self.k==2:
-
-            fig = pylab.figure(figsize=(8,6))
+        if self.k == 2:
+            
+            matplotlib.rcParams['font.family'] = "Times New Roman"
+            
+            fig = plt.figure(figsize=(8, 6))
             samplePoints = list(zip(*self.X))
             # Create a set of data to plot
             plotgrid = 61
@@ -526,7 +533,7 @@ class kriging(matrixops):
 
             # Predict based on the optimized results
 
-            zs = np.array([self.predict([x,y]) for x,y in zip(np.ravel(X), np.ravel(Y))])
+            zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
             Z = zs.reshape(X.shape)
             # Z = (Z*(self.ynormRange[1]-self.ynormRange[0]))+self.ynormRange[0]
 
@@ -534,7 +541,7 @@ class kriging(matrixops):
             zse = np.array([self.predict_var([x,y]) for x,y in zip(np.ravel(X), np.ravel(Y))])
             Ze = zse.reshape(X.shape)
 
-            spx = (self.X[:,0] * (self.normRange[0][1] - self.normRange[0][0])) + self.normRange[0][0]
+            spx = (self.X[:, 0] * (self.normRange[0][1] - self.normRange[0][0])) + self.normRange[0][0]
             spy = (self.X[:,1] * (self.normRange[1][1] - self.normRange[1][0])) + self.normRange[1][0]
             contour_levels = 25
 
@@ -558,7 +565,7 @@ class kriging(matrixops):
                 contour_levels = np.insert(contour_levels, 0, contour_levels[0]-delta)
                 contour_levels = np.append(contour_levels, contour_levels[-1]+delta)
 
-            CS = plt.contourf(X,Y,Z,contour_levels,zorder=1)
+            CS = plt.contourf(X, Y, Z, contour_levels, zorder=1)
             pylab.plot(spx, spy,'ow', zorder=3)
             pylab.colorbar()
 
