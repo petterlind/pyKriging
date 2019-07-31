@@ -48,7 +48,7 @@ class regression_kriging(matrixops):
         self.reg = reg
         self.updateData()
         self.updateModel()
-        self.thetamin = 5
+        self.thetamin = 1
         self.thetamax = 50
         self.pmin = 1.9
         self.pmax = 2.1
