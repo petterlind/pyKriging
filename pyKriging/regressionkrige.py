@@ -50,8 +50,8 @@ class regression_kriging(matrixops):
         self.updateModel()
         self.thetamin = 1
         self.thetamax = 50
-        self.pmin = 2.00
-        self.pmax = 3.00
+        self.pmin = 1.00
+        self.pmax = 2.00
         self.Lambda_min = 0.01 #1e-2
         self.Lambda_max = 0.1
                     # regression order
