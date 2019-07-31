@@ -50,10 +50,10 @@ class regression_kriging(matrixops):
         self.updateModel()
         self.thetamin = 1
         self.thetamax = 50
-        self.pmin = 1.9
-        self.pmax = 2.1
+        self.pmin = 1.99
+        self.pmax = 2.01
         self.Lambda_min = 0.01 #1e-2
-        self.Lambda_max = 1
+        self.Lambda_max = 0.1
                     # regression order
 
         # Setup functions for tracking history
@@ -813,7 +813,7 @@ class regression_kriging(matrixops):
 
                 if self.testfunction is not None:
                     ax2.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet', label='testfunction')
-            plt.title('th =' + str(self.theta) + ': lm =' + str(self.Lambda))
+            plt.title('th =' + str(self.theta) + ': lm =' + str(self.Lambda) + ': p = ' + str(self.pl))
             #ax2.legend(prop={'size': 20})
             ax2.set_xlabel('$X_1$')
             ax2.set_ylabel('$X_2$')
