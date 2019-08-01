@@ -56,7 +56,7 @@ class regression_kriging(matrixops):
         self.pl = np.ones(self.k) * 2
         self.Lambda_min = 0.01 #1e-2
         self.Lambda_max = 0.1
-        self.Lambda = 0.01 #0.03
+        self.Lambda = 0.1 #0.03
                     # regression order
 
         # Setup functions for tracking history
