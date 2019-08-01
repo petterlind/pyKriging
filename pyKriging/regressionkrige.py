@@ -48,10 +48,11 @@ class regression_kriging(matrixops):
         self.reg = reg
         self.updateData()
         self.updateModel()
-        self.thetamin = 1
+        self.thetamin = 2
         self.thetamax = 50
-        self.pmin = 1.9
-        self.pmax = 2.2
+        self.pmin = 1.7
+        self.pmax = 2.3
+        self.pl = np.ones(self.k) * 2
         self.Lambda_min = 0.01 #1e-2
         self.Lambda_max = 0.1
                     # regression order
@@ -485,8 +486,12 @@ class regression_kriging(matrixops):
 
         # Establish the bounds for optimization for theta and p values
 
-        lowerBound = [self.thetamin] * self.k + [self.pmin] * self.k + [self.Lambda_min]
-        upperBound = [self.thetamax] * self.k + [self.pmax] * self.k + [self.Lambda_max]
+        #lowerBound = [self.thetamin] * self.k + [self.pmin] * self.k + [self.Lambda_min]
+        #upperBound = [self.thetamax] * self.k + [self.pmax] * self.k + [self.Lambda_max]
+
+        # wo p
+        lowerBound = [self.thetamin]  * self.k + [self.Lambda_min]
+        upperBound = [self.thetamax] * self.k + [self.Lambda_max]
 
         #Create a random seed for our optimizer to use
         rand = Random()
@@ -529,22 +534,20 @@ class regression_kriging(matrixops):
             for i in range(self.k):
                 locOP_bounds.append([self.thetamin, self.thetamax])
 
-            for i in range(self.k):
-                locOP_bounds.append([self.pmin, self.pmax])
+            #for i in range(self.k):
+            #    locOP_bounds.append([self.pmin, self.pmax])
 
             locOP_bounds.append([self.Lambda_min, self.Lambda_max])
 
             # Let's quickly double check that we're at the optimal value by running a quick local optimization
             lopResults = minimize(self.fittingObjective_local, newValues, method='SLSQP', bounds=locOP_bounds, options={'disp': False})
-
-
             newValues = lopResults['x']
 
             # Finally, set our new theta and pl values and update the model again
             for i in range(self.k):
                 self.theta[i] = newValues[i]
-            for i in range(self.k):
-                self.pl[i] = newValues[i + self.k]
+            #for i in range(self.k):
+            #    self.pl[i] = newValues[i + self.k]
             self.Lambda = newValues[-1]
             try:
                 flag_plateau = self.sasena_check()
@@ -567,8 +570,8 @@ class regression_kriging(matrixops):
             f = 10000
             for i in range(self.k):
                 self.theta[i] = entry[i]
-            for i in range(self.k):
-                self.pl[i] = entry[i + self.k]
+            #for i in range(self.k):
+            #    self.pl[i] = entry[i + self.k]
             self.Lambda = entry[-1]
             try:
                 self.updateModel()
