@@ -21,7 +21,7 @@ import pdb
 import os
 
 class regression_kriging(matrixops):
-    def __init__(self, X, y, bounds=None, testfunction=None, reg='Constant', name='', testPoints=None, MLEP=True, normtype='std', **kwargs):
+    def __init__(self, X, y, bounds=None, testfunction=None, reg='Cubic', name='', testPoints=None, MLEP=True, normtype='std', Lambda=0.01 **kwargs):
 
         self.X = copy.deepcopy(X)
         self.y = copy.deepcopy(y)
@@ -49,14 +49,14 @@ class regression_kriging(matrixops):
         self.reg = reg
         self.updateData()
         self.updateModel()
-        self.thetamin = 2
+        self.thetamin = 1
         self.thetamax = 50
         self.pmin = 1.7
         self.pmax = 2.3
         self.pl = np.ones(self.k) * 2
         self.Lambda_min = 0.01 #1e-2
         self.Lambda_max = 0.1
-        self.Lambda = 0.1 #0.03
+        self.Lambda = Lambda #0.1 #0.03
                     # regression order
 
         # Setup functions for tracking history
@@ -659,7 +659,7 @@ class regression_kriging(matrixops):
     def plot_trend(self):
 
         matplotlib.rcParams['font.family'] = "Times New Roman"
-        X, Y = np.meshgrid(np.arange(0, 1, 0.05), np.arange(0, 1, 0.05))
+        X, Y = np.meshgrid(np.arange(-1.5, 1.5, 0.1), np.arange(-1.5, 1.5, 0.1))
         zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
 
@@ -685,7 +685,7 @@ class regression_kriging(matrixops):
         plt.show()
 
     def plot_rad(self):
-        x = y = np.arange(0, 1, 0.05)
+        x = y = np.arange(-1.5, 1.5, 0.1)
         X, Y = np.meshgrid(x, y)
 
         zs = np.array([self.predict([x, y], norm=False) - self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
