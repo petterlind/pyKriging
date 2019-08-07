@@ -21,7 +21,7 @@ import pdb
 import os
 
 class regression_kriging(matrixops):
-    def __init__(self, X, y, bounds=None, testfunction=None, reg='Cubic', name='', testPoints=None, MLEP=True, normtype='std', Lambda=0.01 **kwargs):
+    def __init__(self, X, y, bounds=None, testfunction=None, reg='Cubic', name='', testPoints=None, MLEP=True, normtype='std', Lambda=0.01, **kwargs):
 
         self.X = copy.deepcopy(X)
         self.y = copy.deepcopy(y)
@@ -50,7 +50,7 @@ class regression_kriging(matrixops):
         self.updateData()
         self.updateModel()
         self.thetamin = 1
-        self.thetamax = 50
+        self.thetamax = 20
         self.pmin = 1.7
         self.pmax = 2.3
         self.pl = np.ones(self.k) * 2
