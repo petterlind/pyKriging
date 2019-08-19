@@ -852,7 +852,6 @@ class regression_kriging(matrixops):
                 x_vec = np.linspace(xmin, xmax, num=plotgrid)
 
             # Predict based on the optimized results
-
             y = np.array([self.predict(np.array(x).reshape(1,)) for x in np.ravel(x_vec)])
 
             plt.plot(x, y, 'ro')
