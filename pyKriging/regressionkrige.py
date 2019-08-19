@@ -40,7 +40,7 @@ class regression_kriging(matrixops):
         self.Lambda = 0
         self.sigma = 0
 
-        self.normtype = normtype                               #  std if normalized st std is one, else normalized on interval [0, 1]
+        self.normtype = normtype  #  std if normalized st std is one, else normalized on interval [0, 1]
         self.normRange = []
         self.ynormRange = []
         self.normalizeData()                        # normalizes the input data!
@@ -50,7 +50,7 @@ class regression_kriging(matrixops):
         self.updateData()
         self.updateModel()
         self.thetamin = 1
-        self.thetamax = 20
+        self.thetamax = 15
         self.pmin = 1.7
         self.pmax = 2.3
         self.pl = np.ones(self.k) * 2
@@ -804,7 +804,7 @@ class regression_kriging(matrixops):
                 ax2.set_xlabel('$X_1$')
                 ax2.set_ylabel('$X_2$')
                 ax2.set_zlabel('$\mathbf{G}(X_1, X_2)$')
-                plt.savefig(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\figg' + str(self.X.shape[0]) + '.png', format='png', dpi=1000)
+                plt.savefig(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\figg' + str(self.X.shape[0]) + '.png', format='png', dpi=400)
             else:
 
                 pass
@@ -835,7 +835,7 @@ class regression_kriging(matrixops):
                 plt.show()
             else:
                 my_path = os.path.abspath('.')
-                plt.savefig(my_path + '/img/' + name + '.png', format='png', dpi=1000)
+                plt.savefig(my_path + '/img/' + name + '.png', format='png', dpi=400)
 
         if self.k == 1:
             if fig is None:

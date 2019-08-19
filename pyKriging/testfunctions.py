@@ -71,14 +71,14 @@ class testfunctions():
         for point in X:
             
             sum1 = 0
-            sum2 = 0
-            for ind, elem in enumerate(point):
-                sum1 += elem ** 2
-                sum2 += np.cos(elem / np.sqrt(ind + 1))
+            sum2 = 1
+            for ind, coord in enumerate(point):
+                sum1 += coord ** 2
+                sum2 = sum2 * np.cos(coord / np.sqrt(ind + 1))
             
             val = 1 + sum1 / 4000 - sum2
             fun_val.append(val)
-        return fun_val
+        return  np.array(fun_val)
         
         
     def branin(self, X):
