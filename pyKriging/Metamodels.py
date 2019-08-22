@@ -106,92 +106,36 @@ class metamodel():
 
         for i in range(self.n):
             self.y[i] = self.normy(self.y[i])
-
-        # if self.bounds is not None:
-        #    self.bounds = self.normX(self.bounds)
-
-    def predict(self, X, norm=True):
-        '''
-        This function returns the prediction of the model at the real world coordinates of X
-        :param X: Design variable to evaluate
-        :return: Returns the 'real world' predicted value
-        '''
-        X = copy.deepcopy(X)
-        if norm:
-            X = self.normX(X)
-
-        return self.inversenormy(self.predict_normalized(X))
-
-    def predict_normalized(self, X):
-        ''' Predicts normalized values'''
-        if self.k == 2:
-            return self.rbfi(X[0], X[1])
-        elif self.k == 3:
-            return self.rbfi(X[0], X[1], X[2])
-        else:
-            return NotImplementedError
             
-    def train(self):
-        '''
-        Fits the model parameter, copy of pykriging method to save programming time..
-        '''
-        if self.reg == 'RbfG':  # Cubic rbf
-            if self.k == 2:
-                self.rbfi = interp.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='gaussian')
-            elif self.k == 3:
-                self.rbfi = interp.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='gaussian')
-            else:
-                raise NotImplementedError
-                
-        elif self.reg == 'RbfGL':  # Cubic rbf
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='gaussian', reg='First')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='gaussian', reg='First')
-            else:
-                raise NotImplementedError
-                
-        elif self.reg == 'RbfGC':  # Cubic rbf
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='gaussian', reg='Cubic')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='gaussian', reg='Cubic')
-            else:
-                raise NotImplementedError
+    def animate():
+        if animate:
+            def init():
+                ax.set_xlim([0, 1])
+                ax.set_ylim([0, 1])
+                ax.set_zlim([0, 250])
+                ax.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
+                ax.scatter(spx, spy, self.inversenormy(self.y), color='k', label='Experiments')
+                ax.legend(prop={'size': 20})
+                if self.testfunction is not None:
+                    ax.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet')
+                ax.set_xlabel('$X_1$')
+                ax.set_ylabel('$X_2$')
+                ax.set_zlabel('$\mathbf{G}(X_1, X_2)$')
 
-        elif self.reg == 'RbfExpC':
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='cubic', reg='Cubic')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='cubic', reg='Cubic')
-            else:
-                raise NotImplementedError
-                
-        elif self.reg == 'RbfExpL':
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, reg='First', function='cubic')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='cubic', reg='First')
-            else:
-                raise NotImplementedError
-        
-        elif self.reg == 'RbfExp':
-            if self.k == 2:
-                self.rbfi = interp.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='cubic')
-            elif self.k == 3:
-                self.rbfi = interp.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='cubic')
-            else:
-                raise NotImplementedError
-                
-        elif self.reg == 'RbfExpCo':
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='cubic', reg='Constant')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='Constant', reg='Constant')
-            else:
-                raise NotImplementedError
-        else:
-            raise NotImplementedError
+                # ax.legend()
+                return fig,
+
+            def animate(i):
+                ax.view_init(elev=10., azim=i)
+                return fig,
+
+            # Animate
+            anim = animation.FuncAnimation(fig, animate, init_func=init,
+                               frames=360, interval=20, blit=True)
+            # Save
+            anim.save(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\animation.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+            
+        raise NotImplementedError()
 
     def plot(self, fig=None, ax=None, labels=False, show=True, plot_int=None, animate=False, only_points=False, name=None):
         '''
@@ -201,13 +145,15 @@ class metamodel():
         :return:
         https://stackoverflow.com/questions/13316397/matplotlib-animation-no-moviewriters-available
         '''
+        if self.k > 2:
+            print('Can not plot more than two input dimensions.')
+            raise ValueError
         if self.k == 2:
 
             if fig is None:
                 fig = plt.figure(figsize=(8, 6))
 
-
-            samplePoints = list(zip(*self.inversenormX(self.X))) # lists of list of every coordiante
+            samplePoints = list(zip(*self.inversenormX(self.X)))  # lists of list of every coordiante
             # Create a set of data to plot
             plotgrid = 50
             if plot_int is None:
@@ -224,10 +170,6 @@ class metamodel():
                 zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
                 Z = zs.reshape(X.shape)  # non-normed
 
-                #Calculate errors
-                # zse = np.array([self.predict_var([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
-                # Ze = zse.reshape(X.shape)
-
             if self.testfunction is not None:
                 zt = self.testfunction(np.array(list(zip(np.ravel(X), np.ravel(Y)))))
                 ZT = zt.reshape(X.shape)
@@ -241,43 +183,12 @@ class metamodel():
             # fig = plt.gcf()
             #ax = fig.gca(projection='3d')
 
-
-            if animate:
-                def init():
-                    ax.set_xlim([0, 1])
-                    ax.set_ylim([0, 1])
-                    ax.set_zlim([0, 250])
-                    ax.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
-                    ax.scatter(spx, spy, self.inversenormy(self.y), color='k', label='Experiments')
-                    ax.legend(prop={'size': 20})
-                    if self.testfunction is not None:
-                        ax.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet')
-                    ax.set_xlabel('$X_1$')
-                    ax.set_ylabel('$X_2$')
-                    ax.set_zlabel('$\mathbf{G}(X_1, X_2)$')
-
-                    # ax.legend()
-                    return fig,
-
-                def animate(i):
-                    ax.view_init(elev=10., azim=i)
-                    return fig,
-
-                # Animate
-                anim = animation.FuncAnimation(fig, animate, init_func=init,
-                                   frames=360, interval=20, blit=True)
-                # Save
-                anim.save(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\animation.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
-
-
-
                 fig2 = plt.figure(figsize=(8, 6))
                 ax2 = Axes3D(fig2)
                 ax2.set_xlim([0, 1])
                 ax2.set_ylim([0, 1])
                 ax2.set_zlim([0, 250])
                 ax2.scatter(samplePoints[0], samplePoints[1], self.inversenormy(self.y), color='k', label='Experiments')
-
 
                 if not only_points:
                     ax2.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
@@ -288,7 +199,6 @@ class metamodel():
                 ax2.set_zlabel('$\mathbf{G}(X_1, X_2)$')
                 plt.savefig(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\figg' + str(self.X.shape[0]) + '.png', format='png', dpi=1000)
             else:
-
                 pass
 
             fig2 = plt.figure(figsize=(8, 6))
@@ -309,10 +219,10 @@ class metamodel():
             # pylab.title(self.reg)
             # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
             # ax.legend(['Approx fun.', 'True fun.'], loc="upper right")
-
             # Now add the legend with some customizations.
             # legend = ax.legend(loc='upper center', shadow=True)
             # legend = ax.legend(loc='upper center', shadow=True)
+            
             if show:
                 plt.show()
             else:
@@ -338,11 +248,6 @@ class metamodel():
             y = np.array([self.predict(np.array(x).reshape(1,)) for x in np.ravel(x_vec)])
 
             plt.plot(x, y, 'ro')
-            # pylab.colorbar()
-            # pylab.plot(spx, spy,'ow')
-            # pylab.xlabel('test1')
-            # pylab.ylabel('test2')
-            # pylab.title(self.reg)
 
 
     def RRMSE_R2(self, n=2500):
