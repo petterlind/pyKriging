@@ -132,14 +132,14 @@ class matrixops():
         elif self.reg.lower() == 'cubic':
             ''' Natural cubic spline, implementation from ch 5.3 in The elements of statisitical modeling
             '''
-            knots = np.linspace(0, 1, num=3)
+            knots = np.linspace(-1, 1, num=3)
             f = nc.basis_2d(x, knots)
             return f
             
         elif self.reg.lower() == 'cubic2':
             ''' Natural cubic spline, implementation from ch 5.3 in The elements of statisitical modeling
             '''
-            knots = np.linspace(0, 1, num=4)
+            knots = np.linspace(-1, 1, num=4)
             f = nc.basis_2d(x, knots)
             return f
             
@@ -305,10 +305,9 @@ class matrixops():
                 sv2, v2 = la.eigh(self.Psi)
                 max_cond = np.max([np.abs(np.max(sv1) / np.min(sv1)), np.abs(np.max(sv2) / np.min(sv2))])
                 Machine_eps = np.finfo(np.double).eps
-                if max_cond > 1 / Machine_eps:
+                if max_cond > 1 / (2 * Machine_eps):
                     print('R or Ft have bad condition! Bad hyperparameters')
                     raise ValueError
-                
                 
                 self.beta = la.solve(Ft, Yt)
                 # self.SigmaSqr = ((self.y - self.one.dot(self.mu)).T.dot(la.solve(self.U, la.solve(self.U.T, (self.y - self.one.dot(self.mu)))))) / self.n

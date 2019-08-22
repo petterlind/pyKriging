@@ -659,7 +659,7 @@ class regression_kriging(matrixops):
     def plot_trend(self):
 
         matplotlib.rcParams['font.family'] = "Times New Roman"
-        X, Y = np.meshgrid(np.arange(-1.5, 1.5, 0.1), np.arange(-1.5, 1.5, 0.1))
+        X, Y = np.meshgrid(np.arange(-2, 2, 0.1), np.arange(-2, 2, 0.1))
         zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
 
@@ -677,7 +677,7 @@ class regression_kriging(matrixops):
         ax.plot_surface(X, Y, Z, cmap=cm.coolwarm)
         ax.plot_wireframe(X, Y, Z_r)
 
-        ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y))
+        ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y),'r')
 
         ax.set_xlabel('X_1')
         ax.set_ylabel('X_2')
