@@ -58,7 +58,26 @@ class testfunctions():
         for i in range(X.shape[0]):
             y = np.append(y, (np.sum((X[i]-offset)**3)**(1/3.0)))
         return y
+    
+    def aircraft(self, X):
+        ''' as defined in: Forrester, A., Sobester, A., and Keane, A., 2008. Engineering design via surrogate modelling: a practical guide. John
+Wiley & Sons. '''
         
+        #Every row in X is a 10 d vector
+        if np.isscalar(X[0]):
+            X = [X]
+            
+        if X[0].size is not 10:
+            raise ValueError
+            print('size has to equal ten')
+        
+        fun_val = []
+        for pp in X:
+            val = 0.036 * pp[0] ** 0.758 * pp[1] ** 0.0035 * ( pp[2] / np.cos(np.deg2rad(pp[3]))**2)**0.6 * pp[4]**0.006 * pp[5] **0.04 *(100 * pp[6] / np.cos(np.deg2rad(pp[3])))**(-0.3) * (pp[7] * pp[8])**0.49 + pp[0] * pp[9]
+            fun_val.append(val)
+            
+        return  np.array(fun_val)
+            
     def griewank(self, X):
         '''
         as defined https://en.wikipedia.org/wiki/Griewank_function

@@ -8,7 +8,7 @@ from matplotlib import animation
 import os
 import rbf as rbf_trend
 from scipy import interpolate as interp 
-from Metamodels import metamodel
+from pyKriging.Metamodels import metamodel
 import pdb
 
 class regression_other(metamodel):
@@ -58,60 +58,27 @@ class regression_other(metamodel):
         '''
         Fits the model parameter, copy of pykriging method to save programming time..
         '''
+        
         if self.reg == 'RbfG':  # Cubic rbf
-            if self.k == 2:
-                self.rbfi = interp.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='gaussian')
-            elif self.k == 3:
-                self.rbfi = interp.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='gaussian')
-            else:
-                raise NotImplementedError
+            self.rbfi = interp.Rbf(*self.X.T, self.y, function='gaussian')
                 
         elif self.reg == 'RbfGL':  # Cubic rbf
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='gaussian', reg='First')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='gaussian', reg='First')
-            else:
-                raise NotImplementedError
+            self.rbfi = rbf_trend.Rbf(*self.X.T, self.y, function='gaussian', reg='First')
                 
         elif self.reg == 'RbfGC':  # Cubic rbf
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='gaussian', reg='Cubic')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='gaussian', reg='Cubic')
-            else:
-                raise NotImplementedError
-
+                self.rbfi = rbf_trend.Rbf(*self.X.T, self.y, function='gaussian', reg='Cubic')
+                
         elif self.reg == 'RbfExpC':
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='cubic', reg='Cubic')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='cubic', reg='Cubic')
-            else:
-                raise NotImplementedError
+            self.rbfi = rbf_trend.Rbf(*self.X.T, self.y, function='cubic', reg='Cubic')
                 
         elif self.reg == 'RbfExpL':
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, reg='First', function='cubic')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='cubic', reg='First')
-            else:
-                raise NotImplementedError
+                self.rbfi = rbf_trend.Rbf(*self.X.T, self.y, reg='First', function='cubic')
         
         elif self.reg == 'RbfExp':
-            if self.k == 2:
-                self.rbfi = interp.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='cubic')
-            elif self.k == 3:
-                self.rbfi = interp.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='cubic')
-            else:
-                raise NotImplementedError
+                self.rbfi = interp.Rbf(*self.X.T, self.y, function='cubic')
                 
         elif self.reg == 'RbfExpCo':
-            if self.k == 2:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.y, function='cubic', reg='Constant')
-            elif self.k == 3:
-                self.rbfi = rbf_trend.Rbf(self.X[:, 0], self.X[:, 1], self.X[:, 2], self.y, function='Constant', reg='Constant')
-            else:
-                raise NotImplementedError
+            self.rbfi = rbf_trend.Rbf(*self.X.T, self.y, function='cubic', reg='Constant')
+            
         else:
             raise NotImplementedError

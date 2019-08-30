@@ -6,15 +6,71 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib
 from matplotlib import animation
 import os
-import rbf as rbf_trend
 from scipy import interpolate as interp 
+from pyKriging.samplingplan import samplingplan as sp
 import pdb
+
+import pandas as pd
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.cross_decomposition import PLSRegression
+from sklearn import model_selection
+from sklearn.metrics import mean_squared_error, r2_score
+
 
 
 class metamodel():
+    def __init__(self, X, y, bounds=None, testfunction=None, reg='Cubic', name='', testPoints=None, MLEP=True, normtype='std', Lambda=0.01, PLS=False, **kwargs):
+        
+        self.X_orig = copy.deepcopy(X)
+        self.X = copy.deepcopy(X)
+        self.y = copy.deepcopy(y)
+        self.testfunction = testfunction
+        self.flag_penal = MLEP
+        self.bounds = bounds
+        self.name = name
+        self.n = self.X.shape[0]
+        try:
+            self.k = self.X.shape[1]
+        except:
+            self.k = 1
+            self.X = self.X.reshape(-1, 1)
+        self.theta = np.ones(self.k)
+        self.pl = np.ones(self.k) * 2.
+        self.Lambda = 0
+        self.sigma = 0
 
+        self.normtype = normtype  #  std if normalized st std is one, else normalized on interval [0, 1]
+        self.normRange = []
+        self.ynormRange = []
+        self.normalizeData()                        # normalizes the input data!
+
+        self.sp = sp(self.k)
+        self.reg = reg
+        self.updateData()
+        self.updateModel()
+        self.thetamin = 1
+        self.thetamax = 15
+        self.pmin = 1.7
+        self.pmax = 2.3
+        self.pl = np.ones(self.k) * 2
+        self.Lambda_min = 0.01 #1e-2
+        self.Lambda_max = 0.1
+        self.Lambda = Lambda #0.1 #0.03
+                    # regression order
+        if PLS:
+            self.X, self.y = self.PLS_fun(self.X, self.y)
+        
+    def PLS_fun(self, X, y):
+        # The PLS - regression computes a new basis in which the 
+        pls2 = PLSRegression(n_components=2)
+        # Fit
+        Xt, yt = pls2.fit_transform(X, y=y)
+        # New coordinates in t-space!
+        return Xt, yt
+    
     def normX(self, X):
-        '''
+        '''    
         :param X: An array of points (self.k long) in physical world units
         :return X: An array normed to our model range of [0,1] for each dimension
         '''
@@ -249,15 +305,41 @@ class metamodel():
 
             plt.plot(x, y, 'ro')
 
+    def pf(self, dist_param, MC_num):
+        # inputs needs to be distributions!
+        
+        # Sample points on the surface using MC
+        X = sp(k=self.k).MC(int(MC_num))
+        
+        # Multiply with inverse of dist.
+        
+        f_vec = np.zeros((n,))
+        xi = []
+        
+        
+        # Do evaluations
+        f_vec = np.array([self.predict(np.asarray(xs)) for xs in zip(*xi)])
+        y_vec = self.testfunction(np.array(list(zip(*mravel))))
+        y_bar = np.sum(y_vec) / n**2
+        
+        
 
-    def RRMSE_R2(self, n=2500):
+        # Evaluate points.
+        # Compute P_f
+        # Return
+    
+        return P_f
+    
+    def RRMSE_R2(self, n=2500, k):
         '''
         This function calculates the mean relative MSE metric of the model by evaluating MSE at a number of points and the Coefficient of determiniation.
         :param n: Points to Sample, the number of points to sample the mean squared error at. Ignored if the points argument is specified
         :param points: an array of points to sample the model at
         :return: the mean value of MSE and the standard deviation of the MSE points
         '''
-            
+        
+        pdb.set_trace()
+        
         inside = 0
         den = 0
         SS_tot = 0

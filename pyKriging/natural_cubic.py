@@ -73,8 +73,8 @@ def basis_2d(x, k):
     else:
             [b_fun_u] = basis_1d(x[0], k)
             [b_fun_v] = basis_1d(x[1], k)
-        
             F = np.concatenate(np.outer(b_fun_u, b_fun_v))
+            
     return F
     
     

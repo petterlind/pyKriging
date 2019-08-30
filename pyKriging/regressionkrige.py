@@ -6,7 +6,7 @@ from .matrixops import matrixops
 import copy
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
-from pyKriging.samplingplan import samplingplan
+from pyKriging.samplingplan import samplingplan as sp
 import inspyred
 from random import Random
 from time import time
@@ -17,80 +17,15 @@ import matplotlib
 import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
-from metamodel import metamodel
+from pyKriging.Metamodels import metamodel
 import pdb
 import os
 
-class regression_kriging(matrixops, metamodel):
-    def __init__(self, X, y, bounds=None, testfunction=None, reg='Cubic', name='', testPoints=None, MLEP=True, normtype='std', Lambda=0.01, **kwargs):
-
-        self.X = copy.deepcopy(X)
-        self.y = copy.deepcopy(y)
-        self.testfunction = testfunction
-        self.flag_penal = MLEP
-        self.bounds = bounds
-        self.name = name
-        self.n = self.X.shape[0]
-        try:
-            self.k = self.X.shape[1]
-        except:
-            self.k = 1
-            self.X = self.X.reshape(-1, 1)
-        self.theta = np.ones(self.k)
-        self.pl = np.ones(self.k) * 2.
-        self.Lambda = 0
-        self.sigma = 0
-
-        self.normtype = normtype  #  std if normalized st std is one, else normalized on interval [0, 1]
-        self.normRange = []
-        self.ynormRange = []
-        self.normalizeData()                        # normalizes the input data!
-
-        self.sp = samplingplan(self.k)
-        self.reg = reg
-        self.updateData()
-        self.updateModel()
-        self.thetamin = 1
-        self.thetamax = 15
-        self.pmin = 1.7
-        self.pmax = 2.3
-        self.pl = np.ones(self.k) * 2
-        self.Lambda_min = 0.01 #1e-2
-        self.Lambda_max = 0.1
-        self.Lambda = Lambda #0.1 #0.03
-                    # regression order
-
-        # Setup functions for tracking history
-        self.history = {}
-        self.history['points'] = []
-        self.history['neglnlike'] = []
-        self.history['theta'] = []
-        self.history['p'] = []
-        self.history['rsquared'] = [0]
-        self.history['adjrsquared'] = [0]
-        self.history['chisquared'] = [1000]
-        self.history['lastPredictedPoints'] = []
-        if testPoints:
-            self.history['pointData'] = []
-            self.testPoints = self.sp.rlh(testPoints)
-
-            for point in self.testPoints:
-                testPrimitive = {}
-                testPrimitive['point'] = point
-                if self.testfunction:
-                    testPrimitive['actual'] = self.testfunction(point)[0]
-                else:
-                    testPrimitive['actual'] = None
-                testPrimitive['predicted'] = []
-                testPrimitive['mse'] = []
-                testPrimitive['gradient'] = []
-                self.history['pointData'].append(testPrimitive)
-
-        else:
-            self.history['pointData'] = None
-
-        matrixops.__init__(self)
-
+class regression_kriging(metamodel, matrixops):
+    
+    # def __init__(self):
+    # 
+    #     matrixops.__init__(self)
 
     def addPoint(self, newX, newy, norm=True):
         '''
@@ -504,7 +439,7 @@ class regression_kriging(matrixops, metamodel):
             f = 10000
         return f
 
-    def plot_likelihood(self):
+    def plot_likelihood(self): 
         ''' Plots the likeliohood function '''
         X, Y = np.meshgrid(np.linspace(self.thetamin, self.thetamax, 200), np.linspace(self.thetamin, self.thetamax, 200))
 
@@ -514,7 +449,7 @@ class regression_kriging(matrixops, metamodel):
         tot_l = len(np.ravel(X))
         index = 0
         disp_v = 0
-        for x, y in zip(np.ravel(X), np.ravel(Y)):
+        for x, y in zip(np.ravel(X), np.ravel(Y)):  
 
             self.theta[0] = x
             self.theta[1] = y
@@ -625,7 +560,7 @@ class regression_kriging(matrixops, metamodel):
                 currentPredictions.append(copy.deepcopy( predictedPoint) )
 
                 pointprim['predicted'].append( predictedPoint )
-                pointprim['mse'].append( self.predict_var(pointprim['point']) )
+                pointprim['mse'].append( self.predict_var(pointprim['point']) ) 
                 try:
                     pointprim['gradient'] = np.gradient( pointprim['predicted'] )
                 except:
