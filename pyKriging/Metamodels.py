@@ -9,6 +9,7 @@ import os
 from scipy import interpolate as interp 
 from pyKriging.samplingplan import samplingplan as sp
 import pdb
+from itertools import product
 
 import pandas as pd
 from sklearn.decomposition import PCA
@@ -20,23 +21,20 @@ from sklearn.metrics import mean_squared_error, r2_score
 
 
 class metamodel():
-    def __init__(self, X, y, bounds=None, testfunction=None, reg='Cubic', name='', testPoints=None, MLEP=True, normtype='std', Lambda=0.01, PLS=False, **kwargs):
+    def __init__(self, X, y, bounds=None, testfunction=None, reg=None, name='', testPoints=None, MLEP=True, normtype='std', Lambda=0.01, PLS=False, **kwargs):
         
         self.X_orig = copy.deepcopy(X)
+        self.y_orig = copy.deepcopy(y)
         self.X = copy.deepcopy(X)
         self.y = copy.deepcopy(y)
+        
         self.testfunction = testfunction
         self.flag_penal = MLEP
         self.bounds = bounds
         self.name = name
         self.n = self.X.shape[0]
-        try:
-            self.k = self.X.shape[1]
-        except:
-            self.k = 1
-            self.X = self.X.reshape(-1, 1)
-        self.theta = np.ones(self.k)
-        self.pl = np.ones(self.k) * 2.
+
+
         self.Lambda = 0
         self.sigma = 0
 
@@ -44,11 +42,25 @@ class metamodel():
         self.normRange = []
         self.ynormRange = []
         self.normalizeData()                        # normalizes the input data!
-
+        self.PLS = PLS
+        self.pls2 = None
+        if self.PLS:
+            self.pls2 = PLSRegression(n_components=self.X.shape[1])
+            self.pls2.fit(self.X, self.y)
+            self.X = self.PLS_trans(self.X)
+            
+        try:
+            self.k = self.X.shape[1]
+        except:
+            self.k = 1
+            self.X = self.X.reshape(-1, 1)
+        
+        self.theta = np.ones(self.k)
+        self.pl = np.ones(self.k) * 2.
         self.sp = sp(self.k)
         self.reg = reg
-        self.updateData()
-        self.updateModel()
+        # self.updateData()
+        # self.updateModel()
         self.thetamin = 1
         self.thetamax = 15
         self.pmin = 1.7
@@ -58,16 +70,19 @@ class metamodel():
         self.Lambda_max = 0.1
         self.Lambda = Lambda #0.1 #0.03
                     # regression order
-        if PLS:
-            self.X, self.y = self.PLS_fun(self.X, self.y)
         
-    def PLS_fun(self, X, y):
+    def PLS_trans(self, X):
         # The PLS - regression computes a new basis in which the 
-        pls2 = PLSRegression(n_components=2)
-        # Fit
-        Xt, yt = pls2.fit_transform(X, y=y)
-        # New coordinates in t-space!
-        return Xt, yt
+        bm = self.pls2.x_rotations_ # full rotation
+        Xt = np.linalg.solve(bm, X.T).T
+        # Pick out only first two components of this vector
+        Xt = Xt[:, :2]
+        return Xt 
+        
+    def PLS_inv_rot(self, X):
+        bm = self.pls2.x_rotations_ # full rotation
+        Xr = np.dot(bm, X.T).T
+        return Xr
     
     def normX(self, X):
         '''    
@@ -144,7 +159,7 @@ class metamodel():
         We find the max and min of each dimension and norm that axis to a range of [0,1]
         '''
         # lower and upper bound of data.
-        for i in range(self.k):
+        for i in range(self.X.shape[1]): # self.k can be smth different if PLS is used!
             if self.normtype == 'std':
                 self.normRange.append([np.mean(self.X[:, i]), np.std(self.X[:, i], dtype=np.float64)])
             else:  # determine the intervals
@@ -201,75 +216,74 @@ class metamodel():
         :return:
         https://stackoverflow.com/questions/13316397/matplotlib-animation-no-moviewriters-available
         '''
+        
         if self.k > 2:
-            print('Can not plot more than two input dimensions.')
-            raise ValueError
+            pass
+            
         if self.k == 2:
-
+            
             if fig is None:
                 fig = plt.figure(figsize=(8, 6))
 
-            samplePoints = list(zip(*self.inversenormX(self.X)))  # lists of list of every coordiante
+            # samplePoints = list(zip(*self.inversenormX(self.X_orig)))  # lists of list of every coordiante
             # Create a set of data to plot
             plotgrid = 50
             if plot_int is None:
-                x = np.linspace(min(samplePoints[0]), max(samplePoints[0]), num=plotgrid)
-                y = np.linspace(min(samplePoints[1]), max(samplePoints[1]), num=plotgrid)
+                x = np.linspace(min(self.X[:, 0]), max(self.X[:, 0]), num=plotgrid)
+                y = np.linspace(min(self.X[:, 1]), max(self.X[:, 1]), num=plotgrid)
             else:  # boundries
                 xmin, xmax, ymin, ymax = plot_int
                 x = np.linspace(xmin, xmax, num=plotgrid)
                 y = np.linspace(ymin, ymax, num=plotgrid)
             X, Y = np.meshgrid(x, y)
-
-            # Predict based on the optimized results
+            
             if not only_points:  # compute the true values at all points!
-                zs = np.array([self.predict([x, y]) for x, y in zip(np.ravel(X), np.ravel(Y))])
+                modeldata = np.asarray([np.ravel(X), np.ravel(Y)]).T
+                nor = True
+                if self.PLS:
+                    # modeldata = self.PLS_trans(self.normX(modeldata))
+                    nor = False
+                    
+                zs = np.array([self.predict(data, norm=nor) for data in modeldata])
                 Z = zs.reshape(X.shape)  # non-normed
-
-            if self.testfunction is not None:
-                zt = self.testfunction(np.array(list(zip(np.ravel(X), np.ravel(Y)))))
+                
+            if self.testfunction is not None and self.X_orig.shape[1]==2:
+                testdata = np.array(list(zip(np.ravel(X), np.ravel(Y))))
+                zt = self.testfunction(self.inversenormX(self.PLS_inv_rot(testdata)))
                 ZT = zt.reshape(X.shape)
 
             if ax is None:
                 # ax = fig.add_subplot(111, projection='3d')
-                ax = Axes3D(fig)
+                # ax = Axes3D(fig)
                 matplotlib.rcParams['font.family'] = "Times New Roman"
                 plt.style.use('seaborn-bright')
             # ax = fig.add_subplot(212, projection='3d')
             # fig = plt.gcf()
             #ax = fig.gca(projection='3d')
-
                 fig2 = plt.figure(figsize=(8, 6))
                 ax2 = Axes3D(fig2)
-                ax2.set_xlim([0, 1])
-                ax2.set_ylim([0, 1])
-                ax2.set_zlim([0, 250])
-                ax2.scatter(samplePoints[0], samplePoints[1], self.inversenormy(self.y), color='k', label='Experiments')
+                # ax2.set_xlim([0, 1])
+                # ax2.set_ylim([0, 1])
+                # ax2.set_zlim([0, 250])
+                ax2.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y), color='k', label='Experiments')
 
                 if not only_points:
                     ax2.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
-                    ax2.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet')
+                    if self.testfunction is not None and self.X_orig.shape[1]==2:
+                        ax2.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet')
+                        
                 ax2.legend(prop={'size': 20})
                 ax2.set_xlabel('$X_1$')
                 ax2.set_ylabel('$X_2$')
                 ax2.set_zlabel('$\mathbf{G}(X_1, X_2)$')
-                plt.savefig(r'C:\Users\pettlind\Dropbox\KTH\PhD\Article2\animate\figg' + str(self.X.shape[0]) + '.png', format='png', dpi=1000)
+                my_path = os.path.abspath('.')
+                plt.savefig(my_path + '/img/' + name + '.png', format='png', dpi=1000)
+                
+                if show:
+                    plt.show()
+                
             else:
                 pass
-
-            fig2 = plt.figure(figsize=(8, 6))
-            ax2 = Axes3D(fig2)
-            ax2.scatter(samplePoints[0], samplePoints[1], self.inversenormy(self.y), color='k', label='Experiments')
-            if not only_points:
-                ax2.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
-
-                if self.testfunction is not None:
-                    ax2.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet', label='testfunction')
-
-            #ax2.legend(prop={'size': 20})
-            ax2.set_xlabel('$X_1$')
-            ax2.set_ylabel('$X_2$')
-            ax2.set_zlabel('$\mathbf{G}(X_1, X_2)$')
 
 
             # pylab.title(self.reg)
@@ -279,12 +293,6 @@ class metamodel():
             # legend = ax.legend(loc='upper center', shadow=True)
             # legend = ax.legend(loc='upper center', shadow=True)
             
-            if show:
-                plt.show()
-            else:
-                my_path = os.path.abspath('.')
-                plt.savefig(my_path + '/img/' + name + '.png', format='png', dpi=1000)
-
         if self.k == 1:
             if fig is None:
                 fig = plt.figure(figsize=(8, 6))
@@ -305,40 +313,41 @@ class metamodel():
 
             plt.plot(x, y, 'ro')
 
-    def pf(self, dist_param, MC_num):
-        # inputs needs to be distributions!
+    def pf(self, mu, coe, MC_num, limit):
+        '''
+        Computes Pf 
+        
+        Input:
+        mu - vector of mean values
+        coe - coefficient of determination
+        MC_num - number of mc samples
+        '''
         
         # Sample points on the surface using MC
-        X = sp(k=self.k).MC(int(MC_num))
+        X = sp(k=distr.shape[1]).MC(int(MC_num))
         
-        # Multiply with inverse of dist.
-        
-        f_vec = np.zeros((n,))
-        xi = []
-        
-        
-        # Do evaluations
-        f_vec = np.array([self.predict(np.asarray(xs)) for xs in zip(*xi)])
-        y_vec = self.testfunction(np.array(list(zip(*mravel))))
-        y_bar = np.sum(y_vec) / n**2
-        
-        
+        samples = []
+        for m, c in zip(mu, coe):
+            samples.append(np.random.normal(m, m*c, MC_num))
+            
+        samples = np.asarray(samples) # check that these are not transposed!
+        pdb.set_trace()
+        nor = True
+        if self.PLS:
+            mtest = self.PLS_trans(self.normX(samples))  # apply dimension reduction to the training data.
+            nor = False
+            
+        f_vec = np.asarray([self.predict(xs, norm=nor) for xs in mtest])
 
-        # Evaluate points.
-        # Compute P_f
-        # Return
+        return sum(f_vec < 0) / float(MC_num)
     
-        return P_f
-    
-    def RRMSE_R2(self, n=2500, k):
+    def RRMSE_R2(self, k, bounds, n=2500):
         '''
         This function calculates the mean relative MSE metric of the model by evaluating MSE at a number of points and the Coefficient of determiniation.
         :param n: Points to Sample, the number of points to sample the mean squared error at. Ignored if the points argument is specified
         :param points: an array of points to sample the model at
         :return: the mean value of MSE and the standard deviation of the MSE points
         '''
-        
-        pdb.set_trace()
         
         inside = 0
         den = 0
@@ -347,21 +356,32 @@ class metamodel():
         f_vec = np.zeros((n,))
         y_vec = np.zeros((n,))
         
-        nd = n ** (1 / self.k)
-        
+        nd = n ** (1 / k)
         xi = []
-        samplePoints = list(zip(*self.inversenormX(self.X)))
-        for ind in range(self.k):
-            xi.append(np.linspace(min(samplePoints[ind]), max(samplePoints[ind]), num=nd))
         
-        # Do grid [x1, x2, x3, x4 ...]
-        mgrid = np.asarray([np.asarray(a, dtype=np.float_).flatten()
-                          for a in np.meshgrid(*xi)])
-        mravel = [np.ravel(X) for X in mgrid]
+        nump = int(np.floor(nd))
+        if nump < 3:
+            nump = 3
+            
+        marrays = np.asarray([np.linspace(0,1,nump) for i in range(k)])
         
-        # Do evaluations
-        f_vec = np.array([self.predict(np.asarray(xs)) for xs in zip(*mravel)])
-        y_vec = self.testfunction(np.array(list(zip(*mravel))))
+        # Scale
+        for i in range(k):
+            marrays[i, :] = bounds[i][0] + (bounds[i][1] - bounds[i][0]) * marrays[i, :]
+        
+        # All points
+        mravel = []
+        for items in product(*marrays):
+            mravel.append(items)
+        
+        mravel = np.asarray(mravel)
+        mtest = copy.deepcopy(mravel)
+        
+        if self.PLS:
+            mtest = self.PLS_trans(self.normX(mravel))  # apply dimension reduction on the training data.
+            
+        f_vec = np.asarray([self.predict(xs, norm=False) for xs in mtest])
+        y_vec = self.testfunction(mravel)
         y_bar = np.sum(y_vec) / n**2
 
         # https://en.wikipedia.org/wiki/Root-mean-square_deviation

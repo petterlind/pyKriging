@@ -23,9 +23,10 @@ import os
 
 class regression_kriging(metamodel, matrixops):
     
-    # def __init__(self):
-    # 
-    #     matrixops.__init__(self)
+    def __init__(self, X, y, bounds=None, testfunction=None, reg=None, name='', testPoints=None, MLEP=True, normtype='std', Lambda=0.01, PLS=False, **kwargs):
+        metamodel.__init__(self, X, y, bounds=bounds, testfunction=testfunction, reg=reg, name=name, testPoints=testPoints, MLEP=MLEP, normtype=normtype, Lambda=Lambda, PLS=PLS, **kwargs)
+        matrixops.__init__(self)
+        self.updateModel()
 
     def addPoint(self, newX, newy, norm=True):
         '''

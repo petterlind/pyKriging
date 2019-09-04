@@ -12,26 +12,30 @@ from pyKriging.Metamodels import metamodel
 import pdb
 
 class regression_other(metamodel):
+    
     def __init__(self, X, y, testfunction=None, reg=None, name='', testPoints=None, normtype='std', **kwargs):
-        self.X = copy.deepcopy(X)
-        self.y = copy.deepcopy(y)
-        self.testfunction = testfunction
-        self.name = name
-        self.n = self.X.shape[0]
-        try:
-            self.k = self.X.shape[1]
-        except:
-            self.k = 1
-            self.X = self.X.reshape(-1, 1)
-        self.theta = np.ones(self.k)
-        self.pl = np.ones(self.k) * 2.
-        self.Lambda = 0
-        self.sigma = 0
-        self.normRange = []
-        self.ynormRange = []
-        self.normtype = normtype
-        self.normalizeData()  # normalizes the input data!
-        self.reg = reg
+        metamodel.__init__(self, X, y, testfunction=testfunction, reg=reg, name=name, testPoints=testPoints, normtype=normtype, **kwargs)
+    
+    # def __init__(self, X, y, testfunction=None, reg=None, name='', testPoints=None, normtype='std', **kwargs):
+    #     self.X = copy.deepcopy(X)
+    #     self.y = copy.deepcopy(y)
+    #     self.testfunction = testfunction
+    #     self.name = name
+    #     self.n = self.X.shape[0]
+    #     try:
+    #         self.k = self.X.shape[1]
+    #     except:
+    #         self.k = 1
+    #         self.X = self.X.reshape(-1, 1)
+    #     self.theta = np.ones(self.k)
+    #     self.pl = np.ones(self.k) * 2.
+    #     self.Lambda = 0
+    #     self.sigma = 0
+    #     self.normRange = []
+    #     self.ynormRange = []
+    #     self.normtype = normtype
+    #     self.normalizeData()  # normalizes the input data!
+    #     self.reg = reg
 
     def predict(self, X, norm=True):
         '''
@@ -47,12 +51,7 @@ class regression_other(metamodel):
 
     def predict_normalized(self, X):
         ''' Predicts normalized values'''
-        if self.k == 2:
-            return self.rbfi(X[0], X[1])
-        elif self.k == 3:
-            return self.rbfi(X[0], X[1], X[2])
-        else:
-            return NotImplementedError
+        return self.rbfi(*X)
             
     def train(self):
         '''
@@ -81,4 +80,5 @@ class regression_other(metamodel):
             self.rbfi = rbf_trend.Rbf(*self.X.T, self.y, function='cubic', reg='Constant')
             
         else:
+            pdb.set_trace()
             raise NotImplementedError
