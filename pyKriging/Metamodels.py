@@ -271,7 +271,7 @@ class metamodel():
                     ax2.plot_wireframe(X, Y, Z, rstride=3, cstride=3, label='Metamodel')
                     if self.testfunction is not None and self.X_orig.shape[1]==2:
                         ax2.plot_surface(X, Y, ZT, rstride=3, cstride=3, alpha=0.5, cmap='jet')
-                        
+                
                 ax2.legend(prop={'size': 20})
                 ax2.set_xlabel('$X_1$')
                 ax2.set_ylabel('$X_2$')
@@ -331,7 +331,6 @@ class metamodel():
             samples.append(np.random.normal(m, m*c, MC_num))
             
         samples = np.asarray(samples) # check that these are not transposed!
-        pdb.set_trace()
         nor = True
         if self.PLS:
             mtest = self.PLS_trans(self.normX(samples))  # apply dimension reduction to the training data.

@@ -133,6 +133,7 @@ class matrixops():
             ''' Natural cubic spline, implementation from ch 5.3 in The elements of statisitical modeling
             '''
             knots = np.linspace(-1, 1, num=3)
+            pdb.set_trace()
             f = nc.basis_2d(x, knots)
             return f
             
