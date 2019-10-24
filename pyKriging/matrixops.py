@@ -127,14 +127,27 @@ class matrixops():
             return f
             
         elif self.reg.lower() == 'third':
-            raise NotImplementedError
+            f = np.array([1, x[0], x[1], x[0] * x[1], x[0]**2, x[1]**2, x[1] * x[0]**2, x[0] * x[1] ** 2])
+            return f
             
         elif self.reg.lower() == 'cubic':
             ''' Natural cubic spline, implementation from ch 5.3 in The elements of statisitical modeling
             '''
-            knots = np.linspace(-1, 1, num=3)
-            pdb.set_trace()
-            f = nc.basis_2d(x, knots)
+            # minv = min(self.X)
+            # maxv = max(self.X)
+            
+            # Check if significant fewer than points 
+            
+            # if self.n > 3 ** self.PLS_order:
+            #     self.PLS_order = PLS_order
+            # 
+            #     self.PLS_order = int(np.floor(np.log(self.n) / np.log(3)))
+            
+            
+            
+            # knots = np.linspace(-1, 1, num=3)
+            
+            f = nc.basis_2d(x, nd=self.PLS_order)
             return f
             
         elif self.reg.lower() == 'cubic2':
@@ -161,6 +174,7 @@ class matrixops():
 
             i_vec = np.linspace(0, 1, num=ctrlpts_size_u)
             j_vec = np.linspace(0, 1, num=ctrlpts_size_v)
+            
             initial_CP = []  # np.zeros((6, 6, 3))
             mean_inp = np.sum(self.y) / len(self.y)
             for i in range(0, len(i_vec)):
@@ -265,7 +279,7 @@ class matrixops():
         self.psi = np.zeros((self.n, 1))
         newPsi = np.exp(-np.sum(self.theta * np.power(self.distance, self.pl), axis=2))
         self.Psi = np.triu(newPsi, 1)
-        self.Psi = self.Psi + self.Psi.T + np.mat(eye(self.n)) + np.multiply(np.mat(eye(self.n)), np.spacing(1))
+        self.Psi = self.Psi + self.Psi.T + np.diag(np.ones(self.n,)) #+ np.multiply(np.diag(np.ones(self.n,)), np.spacing(1))
         self.U = la.cholesky(self.Psi)
         self.U = self.U.T  # Upper triangular cholesky decomposition.
 
@@ -273,11 +287,18 @@ class matrixops():
         self.Psi = np.zeros((self.n, self.n), dtype=np.float)
         self.one = np.ones(self.n)
         self.psi = np.zeros((self.n, 1))
+        
+        # Gaussian exponential kernel
         newPsi = np.exp(-np.sum(self.theta * np.power(self.distance, self.pl), axis=2))
+        
+        # Cubic r**3, https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.Rbf.html
+        # newPsi = np.sum(self.theta * np.power(self.distance, 3), axis=2)
+        # print('Using cubic kernel')
+        
         self.Psi = np.triu(newPsi, 1)
         self.Psi = self.Psi + self.Psi.T + eye(self.n) + eye(self.n) * (self.Lambda)
         self.U = la.cholesky(self.Psi)
-        self.U = np.matrix(self.U.T)
+        self.U = self.U.T
 
     def neglikelihood(self):
         self.LnDetPsi = 2 * np.sum(np.log(np.abs(np.diag(self.U))))
@@ -363,8 +384,10 @@ class matrixops():
                 for i in range(self.n):
                     self.psi[i] = np.exp(-np.sum(self.theta * np.power((np.abs(self.X[i] - x)), self.pl)))
                 
-                z = self.y - np.dot(self.F, self.beta)
-                
+                try:
+                    z = self.y - np.dot(self.F, self.beta)
+                except:
+                    pdb.set_trace()
                 
                 a = la.solve_triangular(self.U, z, lower=True)
                 b = la.solve_triangular(self.U.T, a)

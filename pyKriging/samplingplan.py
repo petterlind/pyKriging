@@ -7,6 +7,7 @@ import pyKriging
 import matplotlib.pyplot as plt
 import scipy.optimize as opt
 import pdb
+from mpl_toolkits.mplot3d import Axes3D
 
 
 class samplingplan():
@@ -23,6 +24,25 @@ class samplingplan():
     def sphere_opt(self, n):
         ''' Sample n random optimal spacefilling samples within a circle of dimension k and radius 1 centered at origo. Also, already picked values on position self.x_fix are also considered
         source: http://6degreesoffreedom.co/circle-random-sampling/, https://en.wikipedia.org/wiki/N-sphere'''
+        
+        
+        def recursive_sph_coord(r, rand_v):
+            ''' iterative implementation of https://en.wikipedia.org/wiki/N-sphere '''
+            x_row = np.ones((self.k,)) * r
+            for ind in range(self.k):
+                
+                for k in range(ind-1): # Multiply all sin, alwaus in second step! 
+                    x_row[ind] = x_row[ind] * np.sin(rand_v[k+1])
+                        
+                if ind == (self.k-1): # last index, ad sin
+                    x_row[ind] = x_row[ind] * np.sin(rand_v[ind])
+                        
+                else:  # Add cos
+                    x_row[ind] = x_row[ind] * np.cos(rand_v[ind+1])
+                    
+            return x_row
+                
+            
         
         def rec_to_circ(X):
             ''' Takes rectangular LHS and moves it to spherical 
@@ -47,16 +67,10 @@ class samplingplan():
                 
                 # First random is the radius, r
                 r = R * rand_v[0] ** (1 / self.k)  # to radius
-                rand_v[1] = rand_v[1] * 2 * np.pi  # to radians
-                    
-                if self.k > 1:
-                    x_row[0] = r * np.cos(rand_v[1])  # x1
-                    x_row[1] = r * np.sin(rand_v[1])  # x2
-                    
-                if self.k > 2:
-                    raise NotImplementedError
-                
+                rand_v[1:] = rand_v[1:] * 2 * np.pi  # to radians
+                x_row = recursive_sph_coord(r, rand_v)
                 x_circ[iter, :] = x_row
+                
             return x_circ
             
         # Assume R = 1, and that the circle is centered around origo
@@ -64,22 +78,35 @@ class samplingplan():
         # n = 20
         # self.x_fix = self.rlh(6)
         # print('n=', n, ', hardcoded')
-        
         # Space filling MM-samples between [0, 1]
-        x_lhc = self.optimallhc(n, population=30, iterations=30, generation=True)
+        
+        x_lhc = self.optimallhc(n, population=30, iterations=10, generation=True)
         x_circ = rec_to_circ(x_lhc)
         
+        #top right quadrant!
+        x_circ = (x_circ + 1)/2
+        
+        # Plot the stuff!
         # if self.x_fix is not None:
         #     x_fix = rec_to_circ(self.x_fix)
-            
+        # pdb.set_trace()
         # fig = plt.figure()
-        # ax = fig.add_subplot(111)
-        # if self.x_fix is not None:
-        #     ax.plot(x_fix[:, 0], x_fix[:, 1], 'bx', label='Fixed')
-        # ax.plot(x_circ[:, 0], x_circ[:, 1], 'bo', label='Final')
-        # xc = np.linspace(0, 2 * np.pi, num=300)
-        # ax.plot(np.cos(xc), np.sin(xc), 'k', label='Circle')
-        # # plt.legend()
+        # if self.k==2:
+        #     ax = fig.add_subplot(111)
+        #     if self.x_fix is not None:
+        #         ax.plot(x_fix[:, 0], x_fix[:, 1], 'bx', label='Fixed')
+        # 
+        #     ax.plot(x_circ[:, 0], x_circ[:, 1], 'bo', label='Final')
+        #     xc = np.linspace(0, 2 * np.pi, num=300)
+        #     ax.plot(np.cos(xc)*0.5 + 0.5, np.sin(xc)*0.5 + 0.5, 'k', label='Circle')
+        #     # plt.legend()
+        # 
+        # elif self.k==3:  
+        #     pdb.set_trace()  
+        #     ax = Axes3D(fig)
+        #     ax.scatter(x_circ[:, 0], x_circ[:, 1], x_circ[:, 2], 'bo',)
+        # 
+        # plt.show()
         return x_circ
             
     def grid(self, n):
@@ -110,7 +137,7 @@ class samplingplan():
 
         return np.stack((np.concatenate(x1), np.concatenate(x2)), axis=-1)
     
-    def rlh(self, n, Edges=0):
+    def rlh(self, n, Edges=1):
         """
         Generates a random latin hypercube within the [0,1]^k hypercube
 
@@ -176,8 +203,8 @@ class samplingplan():
                 #     print('SP not found on disk, generating it now.')
 
             #list of qs to optimise Phi_q for
-            q = [1,2,5,10,20,50,100]
-            # q = [2,5,10]
+            # q = [1,2,5,10,20,50,100]
+            q = [2, 10]
 
             #Set the distance norm to rectangular for a faster search. This can be
             #changed to p=2 if the Euclidean norm is required.

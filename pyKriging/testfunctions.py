@@ -60,23 +60,55 @@ class testfunctions():
         return y
     
     def aircraft(self, X):
-        ''' as defined in: Forrester, A., Sobester, A., and Keane, A., 2008. Engineering design via surrogate modelling: a practical guide. John
-Wiley & Sons. '''
+        ''' 
+        As defined in: Forrester, A., Sobester, A., and Keane, A., 2008. Engineering design via surrogate modelling: a practical guide. John
+        Wiley & Sons. 
+        '''
         
-        #Every row in X is a 10 d vector
+        #Every row in X  has 10 elements, 10D!
         if np.isscalar(X[0]):
             X = [X]
-            
         if X[0].size is not 10:
             raise ValueError
             print('size has to equal ten')
         
+        fun_val = np.ones((X.shape[0])) * np.nan
+        
+        for iter, pp in enumerate(X):
+            val = 0.036 * pp[0] ** 0.758 * pp[1] ** 0.0035 * ( pp[2] / np.cos(np.deg2rad(pp[3]))**2)**0.6 * pp[4]**0.006 * pp[5] **0.04 *(100 * pp[6] / np.cos(np.deg2rad(pp[3])))**(-0.3) * (pp[7] * pp[8])**0.49 + pp[0] * pp[9]            
+            
+            fun_val[iter] = -val # Added a negative sign for Pf analysis, larger then 300, not smaller then 300! rewritten for memory storage!
+            
+            if val > 1e12 or np.isnan(val): # check if NAN or very very large.
+                print( 'Error in aircraft test fun')
+                pdb.set_trace()
+                raise(ValueError)
+            
+            
+        
+            
+        return  np.array(fun_val)
+        
+    def modified_haupt(self, X):
+        #Every row in X is a 10 d vector
+        if np.isscalar(X[0]):
+            X = [X]
+            
+        if X[0].size is not 2:
+            raise ValueError
+            print('size has to equal two')
+            
         fun_val = []
         for pp in X:
-            val = 0.036 * pp[0] ** 0.758 * pp[1] ** 0.0035 * ( pp[2] / np.cos(np.deg2rad(pp[3]))**2)**0.6 * pp[4]**0.006 * pp[5] **0.04 *(100 * pp[6] / np.cos(np.deg2rad(pp[3])))**(-0.3) * (pp[7] * pp[8])**0.49 + pp[0] * pp[9]
+            val = -pp[0] * np.sin(4 * pp[0]) - 1.1 * pp[1] * np.sin(2 * pp[1])
             fun_val.append(val)
             
         return  np.array(fun_val)
+    
+    def draglink(self, X):
+        ''' Drag link abaqus example'''
+        raise NotImplementedError()
+            
             
     def griewank(self, X):
         '''

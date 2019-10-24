@@ -20,6 +20,7 @@ from matplotlib import animation
 from pyKriging.Metamodels import metamodel
 import pdb
 import os
+from matplotlib.colors import LightSource
 
 class regression_kriging(metamodel, matrixops):
     
@@ -355,10 +356,10 @@ class regression_kriging(metamodel, matrixops):
             ea.terminator = self.no_improvement_termination
             final_pop = ea.evolve(generator=self.generate_population,
                                   evaluator=self.fittingObjective,
-                                  pop_size=500, # 50
+                                  pop_size=50, # 50
                                   maximize=False,
                                   bounder=ec.Bounder(lowerBound, upperBound),
-                                  max_evaluations=10000, # 2000, 1000
+                                  max_evaluations=1000, # 2000, 1000
                                   num_elites=10, # 10
                                   mutation_rate=.05)
 
@@ -481,7 +482,7 @@ class regression_kriging(metamodel, matrixops):
         fig = plt.figure()
         ax = fig.gca(projection='3d')
         # Plot the surface.
-        ax.plot_surface(X, Y, Z, cmap=cm.coolwarm)
+        ax.plot_surface(X, Y, Z, cmap='cividis')
 
         # ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y))
 
@@ -490,10 +491,10 @@ class regression_kriging(metamodel, matrixops):
         ax.set_zlabel('Z')
         plt.show()
 
-    def plot_trend(self):
-
+    def plot_trend(self, fig=None, ax=None):
+        
         matplotlib.rcParams['font.family'] = "Times New Roman"
-        X, Y = np.meshgrid(np.arange(-2, 2, 0.1), np.arange(-2, 2, 0.1))
+        X, Y = np.meshgrid(np.arange(-2, 2, 0.05), np.arange(-2, 2, 0.05))
         zs = np.array([self.inversenormy(self.trend_fun_val([x, y])) for x, y in zip(np.ravel(X), np.ravel(Y))])
         Z = zs.reshape(X.shape)
 
@@ -502,21 +503,33 @@ class regression_kriging(metamodel, matrixops):
         X_unscaled = self.inversenormX(X_Yvec)
         z_real = np.array([self.testfunction(np.array([x, y])) for x, y in X_unscaled])
         Z_r = z_real.reshape(X.shape)
-
-        fig = plt.figure()
+        
+        if fig is None:
+            fig = plt.figure()
+            
         ax = fig.gca(projection='3d')
+            
+        
 
 
         # Plot the surface.
-        ax.plot_surface(X, Y, Z, cmap=cm.coolwarm)
-        ax.plot_wireframe(X, Y, Z_r)
+        ls = LightSource(270, 45)
+        rgb = ls.shade(Z, cmap=cm.jet, vert_exag=0.1, blend_mode='soft')
+        ax.plot_surface(X, Y, Z,  alpha=0.5, rstride=1, cstride=1, facecolors=rgb,
+                       linewidth=0, antialiased=False, shade=False)
+        # ax.plot_wireframe(X, Y, Z_r)
 
-        ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y),'r')
+        ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y),facecolor='black', alpha=1)  # points
 
-        ax.set_xlabel('X_1')
-        ax.set_ylabel('X_2')
-        ax.set_zlabel('G(X_1, X_2)')
-        plt.show()
+        ax.set_xlabel('$X_1$')
+        ax.set_ylabel('$X_2$')
+        ax.set_zlabel('$G(X_1, X_2)$')
+        ax.view_init(elev=7, azim=-65,)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        
+        return fig, ax
+        # plt.show()
 
     def plot_rad(self):
         x = y = np.arange(-1.5, 1.5, 0.1)
@@ -535,7 +548,7 @@ class regression_kriging(metamodel, matrixops):
         ax = fig.gca(projection='3d')
 
         # Plot the surface.
-        ax.plot_surface(X, Y, Z, cmap=cm.coolwarm)
+        ax.plot_surface(X, Y, Z, cmap='cividis', antialiased=True)
         ax.plot_wireframe(X, Y, Z_r)
 
         ax.scatter(self.X[:, 0], self.X[:, 1], self.inversenormy(self.y))

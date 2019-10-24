@@ -7,6 +7,7 @@ from pyKriging import matrixops
 from pyKriging import samplingplan
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import itertools
 
 
 def d_exp(x, k, j, q):
@@ -44,39 +45,103 @@ def basis_1d(x, k):
     b_fun = np.hstack((np.ones((n, 1)), np.reshape(x, (n, 1)), myX))  # matrix with shape functions
     return b_fun
     
+def basis_2d(x, k=None, nd=2):
+    ''' nd-basis for the spline'''
+    n = x.shape[0]
     
-def basis_2d(x, k):
-    '''
-    Input:
-    x - xdata, np.ndarray
-    y - ydata, np.ndarray
-    k - knotvector, np.ndarray
-    
-    Out:
-    F - basis value matrix, 2d
-    '''
-    if not np.isscalar(x[0]):
-        b_fun_u = basis_1d(x[:, 0], k)  # Same knot vector in both directions
-        b_fun_v = basis_1d(x[:, 1], k)
-        length = len(x[:, 0])
-        
-        # Do the matrix for the surface following Nils Carlsson's MT
-        B_row = None
-        for i in range(length):
-            A_conc = np.concatenate(np.outer(b_fun_u[i], b_fun_v[i]))  # Same knot vector in both directions
-            if B_row is None:
-                B_row = A_conc
-            else:
-                B_row = np.append(B_row, A_conc)  # one long row of data, Rewrite for speed?
-        F = np.reshape(B_row, (-1, len(A_conc)))  # reshape into matrix
-    
-    else:
-            [b_fun_u] = basis_1d(x[0], k)
-            [b_fun_v] = basis_1d(x[1], k)
-            F = np.concatenate(np.outer(b_fun_u, b_fun_v)) # The only part that needs to be changed for higher order applications!
+    def compute_basis(b_mat, nd, n, level):
+        ''' nested loop that computes nd-outer product of basis vectors!'''
+        A = []
+        res = 1
+        lists = []
+        for num in level:
+            lists.append(range(0, num)) 
             
+        nr = list(x for x in itertools.product(*lists))
+        
+        for ind in nr:
+            res = 1
+            for d, i in zip(range(nd), ind):
+                res = res * b_mat[d, i]
+            A.append(res) 
+        return A
+        
+    if np.isscalar(x[0]): # if scalar create an array!
+        x = np.asarray([x])
+        nr_p = 1
+    else:
+        nr_p  = len(x[:, 0])
+    
+    level = np.asarray([3] * nd) # starting with a 3*3 cube
+    while np.prod(level) < n / 2:
+        
+        # Check if all are the same
+        if (level == level[0]).all():
+            level[0] = level[0] + 1
+        
+        else: # find first value smaller then level[0]
+            for x, val in enumerate(level):
+                if val < level[0]:
+                    level[x] = val + 1
+    # Compute all the basis function values
+    basis_mat = []
+    # basis_mat = np.zeros((nd, nr_p, 3)) #len(k))) # storage structure!
+    
+    for i in range(nd):
+        basis_mat.append(basis_1d(x[:, i], np.linspace(-1, 1, level[i])))  # Same knot vector in both directions
+    basis_mat = np.asarray(basis_mat)
+    
+    # Assemble, following Nils Carlsson's Master thesis
+    B_row = None
+    
+    for i in range(nr_p):
+        A_conc = np.asarray(compute_basis(basis_mat[:,i,:], nd, n, level))
+        
+        if B_row is None:
+            B_row = A_conc
+        else:
+            B_row = np.append(B_row, A_conc)  # one long row of data, Rewrite for speed?
+    F = np.reshape(B_row, (-1, len(A_conc)))  # reshape into matrix
+    
+    if F is None:
+        raise(TypeError)
+        print('F cant be None!')
+    
     return F
     
+    
+# def basis_2d(x, k):
+#     '''
+#     Input:
+#     x - xdata, np.ndarray
+#     y - ydata, np.ndarray
+#     k - knotvector, np.ndarray
+# 
+#     Out:
+#     F - basis value matrix, 2d
+#     '''
+#     if not np.isscalar(x[0]): #
+        # b_fun_u = basis_1d(x[:, 0], k)  # Same knot vector in both directions
+        # b_fun_v = basis_1d(x[:, 1], k)
+#         length = len(x[:, 0])
+# 
+#         # Do the matrix for the surface following Nils Carlsson's MT
+#         B_row = None
+#         for i in range(length):
+#             A_conc = np.concatenate(np.outer(b_fun_u[i], b_fun_v[i]))  # Same knot vector in both directions
+#             if B_row is None:
+#                 B_row = A_conc
+#             else:
+#                 B_row = np.append(B_row, A_conc)  # one long row of data, Rewrite for speed?
+#         F = np.reshape(B_row, (-1, len(A_conc)))  # reshape into matrix
+# 
+#     else:
+#             [b_fun_u] = basis_1d(x[0], k)
+#             [b_fun_v] = basis_1d(x[1], k)
+#             F = np.concatenate(np.outer(b_fun_u, b_fun_v)) # The only part that needs to be changed for higher order applications!?
+#     pdb.set_trace()        
+#     return F
+# 
     
 def speval(x, coefs, knots):
     bfun = basis_2d(x, knots)
